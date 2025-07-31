@@ -1,0 +1,14 @@
+{
+  "name": "@euplan/core",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "npm run build -- --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.5.3"
+  }
+}
