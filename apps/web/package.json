@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@euplan/core": "workspace:*",
+    "@tiptap/pm": "^3.0.7",
+    "@tiptap/react": "^3.0.7",
+    "@tiptap/starter-kit": "^3.0.7",
     "next": "15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -18,6 +21,7 @@
     "@eslint/eslintrc": "^3",
     "@euplan/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -1,7 +1,11 @@
-import { GREETING } from '@euplan/core/src';
+import TiptapEditor from './components/TiptapEditor'
 
 export default function Home() {
   return (
-    <p>{GREETING}</p>
-  );
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <div className="w-full max-w-4xl">
+        <TiptapEditor />
+      </div>
+    </main>
+  )
 }
