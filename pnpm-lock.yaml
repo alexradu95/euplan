@@ -98,6 +98,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@euplan/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       next:
         specifier: 15.4.5
         version: 15.4.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -111,6 +114,9 @@ importers:
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.1
+      '@euplan/tsconfig':
+        specifier: workspace:*
+        version: link:../../packages/tsconfig
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.1.11
@@ -144,6 +150,8 @@ importers:
       typescript:
         specifier: ^5.5.3
         version: 5.9.2
+
+  packages/tsconfig: {}
 
 packages:
 
