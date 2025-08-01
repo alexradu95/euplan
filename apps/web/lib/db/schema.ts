@@ -4,6 +4,8 @@ import {
   text,
   primaryKey,
   integer,
+  uuid,
+  index,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccount } from "next-auth/adapters"  // Fixed import
 
@@ -61,5 +63,45 @@ export const verificationTokens = pgTable(
   },
   (vt) => ({
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  })
+)
+
+// Documents table - stores user documents with encrypted content
+export const documents = pgTable(
+  "documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("Untitled Document"),
+    encryptedContent: text("encrypted_content"), // Base64 encoded encrypted Y.js document state
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+  },
+  (documents) => ({
+    userIdIdx: index("idx_documents_user_id").on(documents.userId),
+  })
+)
+
+// Document access control - manages sharing and permissions
+export const documentAccess = pgTable(
+  "document_access",
+  {
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessLevel: text("access_level", { 
+      enum: ["read", "write", "owner"] 
+    }).notNull().default("read"),
+    grantedAt: timestamp("granted_at", { mode: "date" }).defaultNow(),
+  },
+  (documentAccess) => ({
+    compoundKey: primaryKey({ 
+      columns: [documentAccess.documentId, documentAccess.userId] 
+    }),
   })
 )
