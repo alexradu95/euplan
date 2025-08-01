@@ -1,6 +1,5 @@
-import { Editor, Range } from '@tiptap/react'
+import { Editor, Range, Extension } from '@tiptap/react'
 import { ReactRenderer } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import Suggestion, { SuggestionProps } from '@tiptap/suggestion'
 import tippy, { Instance } from 'tippy.js'
 import React from 'react'
@@ -33,7 +32,9 @@ const commandItems: CommandItem[] = [
 ]
 
 // This is the custom extension that powers the slash command.
-export const SlashCommand = StarterKit.extend({
+export const SlashCommand = Extension.create({
+  name: 'slashCommand',
+
   addProseMirrorPlugins() {
     return [
       Suggestion({
