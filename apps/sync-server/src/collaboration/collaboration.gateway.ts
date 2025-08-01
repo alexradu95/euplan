@@ -29,13 +29,7 @@ interface DocumentRoom {
 
 @Injectable()
 @WebSocketGateway({
-  cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://your-domain.com'] 
-      : ['http://localhost:3000'],
-    credentials: true,
-    namespace: '/collaboration',
-  },
+  namespace: '/collaboration',
 })
 export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
