@@ -5,7 +5,7 @@ import {
   primaryKey,
   integer,
 } from "drizzle-orm/pg-core"
-import type { AdapterAccount } from "@auth/core/adapters"
+import type { AdapterAccount } from "next-auth/adapters"  // Fixed import
 
 // Users table - stores account information
 export const users = pgTable("user", {

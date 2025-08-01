@@ -3,9 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -35,25 +32,29 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10)
-
-      // Create user in database
-      await db.insert(users).values({
-        id: crypto.randomUUID(),
-        name,
-        email,
-        hashedPassword,
+      // Make API call to server-side route
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
       })
 
-      // Redirect to login
-      router.push('/login?registered=true')
-    } catch (error: any) {
-      if (error.code === '23505') { // Unique constraint violation
-        setError('Email already exists')
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to create account')
       } else {
-        setError('Failed to create account')
+        // Redirect to login with success message
+        router.push('/login?registered=true')
       }
+    } catch (error) {
+      setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
     }
