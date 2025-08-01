@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable prettier/prettier */
 import {
   WebSocketGateway,
@@ -11,7 +12,6 @@ import {
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import * as Y from 'yjs';
-import * as jwt from 'jsonwebtoken';
 import { ConfigService } from '@nestjs/config';
 import { DocumentsService } from '../documents/documents.service';
 
@@ -29,14 +29,13 @@ interface DocumentRoom {
 
 @Injectable()
 @WebSocketGateway({
-  port: 3001,
   cors: {
     origin: process.env.NODE_ENV === 'production' 
       ? ['https://your-domain.com'] 
       : ['http://localhost:3000'],
     credentials: true,
   },
-  namespace: '/collaboration',
+  // namespace: '/collaboration', // Temporarily disabled for testing
 })
 export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -50,6 +49,7 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
     private readonly configService: ConfigService,
     private readonly documentsService: DocumentsService
   ) {
+    this.logger.log('🔌 CollaborationGateway initialized');
     // Periodic save to database
     setInterval(() => this.saveAllDocuments(), this.saveInterval);
   }

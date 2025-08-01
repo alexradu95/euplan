@@ -89,9 +89,9 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         ? 'wss://your-sync-server.com'  // Replace with your production URL
         : 'ws://localhost:3001';
 
-      console.log('Connecting to:', `${syncServerUrl}/collaboration`);
+      console.log('Connecting to:', `${syncServerUrl}`);
 
-      const socket = io(`${syncServerUrl}/collaboration`, {
+      const socket = io(`${syncServerUrl}`, {
         auth: {
           token: session.user.id // Use user ID directly as token
         },
