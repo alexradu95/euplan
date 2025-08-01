@@ -34,8 +34,8 @@ interface DocumentRoom {
       ? ['https://your-domain.com'] 
       : ['http://localhost:3000'],
     credentials: true,
+    namespace: '/collaboration',
   },
-  // namespace: '/collaboration', // Temporarily disabled for testing
 })
 export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
