@@ -1,0 +1,17 @@
+
+> @euplan/core@1.0.0 build D:\euplan\packages\core
+> tsup src/index.ts --format cjs,esm --dts
+
+[34mCLI[39m Building entry: src/index.ts
+[34mCLI[39m tsup v8.5.0
+[34mCLI[39m Target: node16
+[34mCJS[39m Build start
+[34mESM[39m Build start
+[32mESM[39m [1mdist\index.mjs [22m[32m73.00 B[39m
+[32mESM[39m ⚡️ Build success in 31ms
+[32mCJS[39m [1mdist\index.js [22m[32m1.04 KB[39m
+[32mCJS[39m ⚡️ Build success in 31ms
+[34mDTS[39m Build start
+[32mDTS[39m ⚡️ Build success in 510ms
+[32mDTS[39m [1mdist\index.d.ts  [22m[32m66.00 B[39m
+[32mDTS[39m [1mdist\index.d.mts [22m[32m66.00 B[39m

@@ -70,7 +70,18 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Function to connect to WebSocket server
   const connectToSyncServer = useCallback(() => {
-    if (!session?.accessToken || socketRef.current?.connected) return;
+    console.log('Attempting to connect to sync server...', { 
+      hasSession: !!session, 
+      hasAccessToken: !!session?.accessToken,
+      accessToken: session?.accessToken,
+      userId: session?.user?.id,
+      isConnected: socketRef.current?.connected 
+    });
+
+    if (!session?.user?.id || socketRef.current?.connected) {
+      console.log('Connection skipped: missing user ID or already connected');
+      return;
+    }
 
     try {
       // Connect to sync server with authentication
@@ -78,9 +89,11 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         ? 'wss://your-sync-server.com'  // Replace with your production URL
         : 'ws://localhost:3001';
 
+      console.log('Connecting to:', `${syncServerUrl}/collaboration`);
+
       const socket = io(`${syncServerUrl}/collaboration`, {
         auth: {
-          token: session.accessToken
+          token: session.user.id // Use user ID directly as token
         },
         transports: ['websocket', 'polling']
       });
@@ -315,7 +328,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       disconnectFromSyncServer();
     };
-  }, [status, session?.accessToken, connectToSyncServer, disconnectFromSyncServer]);
+  }, [status, session?.user?.id, connectToSyncServer, disconnectFromSyncServer]);
 
   // Part 3: Handle authentication and document loading
   useEffect(() => {

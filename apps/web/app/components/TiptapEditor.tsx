@@ -17,8 +17,10 @@ const TiptapEditor = () => {
 
   const editor = useEditor({
     extensions: [
-      // Always include StarterKit for basic schema
-      StarterKit,
+      // StarterKit without History extension (conflicts with Collaboration)
+      StarterKit.configure({
+        history: false,
+      }),
       // Conditionally add collaboration features when doc is ready
       ...(doc ? [
         Collaboration.configure({

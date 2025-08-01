@@ -62,9 +62,15 @@ export const authConfig: NextAuthConfig = {
       if (token.sub && session.user) {
         session.user.id = token.sub
       }
+      // Create a simple access token with user ID for WebSocket auth
+      session.accessToken = token.sub
       return session
     },
-    async jwt({ token }) {
+    async jwt({ token, user }) {
+      // Include user info in token when user first signs in
+      if (user) {
+        token.sub = user.id
+      }
       return token
     }
   }
