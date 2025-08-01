@@ -318,7 +318,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Part 2: Handle WebSocket connection based on authentication
   useEffect(() => {
-    if (status === 'authenticated' && session?.accessToken) {
+    if (status === 'authenticated' && session?.user?.id) {
       connectToSyncServer();
     } else if (status === 'unauthenticated') {
       disconnectFromSyncServer();
@@ -328,7 +328,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       disconnectFromSyncServer();
     };
-  }, [status, session?.user?.id, connectToSyncServer, disconnectFromSyncServer]);
+  }, [status, session?.user?.id]);
 
   // Part 3: Handle authentication and document loading
   useEffect(() => {
