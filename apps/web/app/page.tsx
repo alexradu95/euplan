@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import TiptapEditor from './components/TiptapEditor'
+import DocumentHeader from './components/DocumentHeader'
 
 export default async function Home() {
   const session = await auth()
@@ -10,15 +11,15 @@ export default async function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
-      <div className="w-full max-w-4xl">
-        <div className="mb-4 text-right">
-          <span className="text-gray-600">
-            Logged in as: {session.user?.email}
-          </span>
+    <div className="min-h-screen bg-gray-50">
+      <DocumentHeader />
+      <main className="flex flex-col items-center p-6">
+        <div className="w-full max-w-4xl">
+          <div className="rounded-lg bg-white shadow-sm">
+            <TiptapEditor />
+          </div>
         </div>
-        <TiptapEditor />
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
