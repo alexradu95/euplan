@@ -4,16 +4,13 @@ import React from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 
 import { Toolbar } from './Toolbar'
-import { SlashCommand } from '../editor/slash-command' // <-- IMPORT our new extension
-import { BubbleMenu } from '@tiptap/react/menus'
-import { Bold, Italic, Strikethrough } from 'lucide-react'
+import { SlashCommand } from '../editor/slash-command'
 import { EditorBubbleMenu } from './BubbleMenu'
 
-// The main editor component is now clean and simple
 const TiptapEditor = () => {
   const editor = useEditor({
     extensions: [
-      SlashCommand,
+      SlashCommand
     ],
     content: '<p>Hello World! 🌎️ Type / for commands...</p>',
     editorProps: {
@@ -27,7 +24,7 @@ const TiptapEditor = () => {
   return (
     <div className="border border-gray-300 rounded-lg p-4">
       <Toolbar editor={editor} />
-      <EditorBubbleMenu editor={editor} /> {/* <-- 2. USE the new component here */}
+      <EditorBubbleMenu editor={editor} /> 
       <EditorContent editor={editor} />
     </div>
   )

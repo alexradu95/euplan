@@ -1,12 +1,10 @@
 'use client'
 
 import React from 'react'
-import { BubbleMenu } from '@tiptap/react/menus' // This import is often correct, but let's assume a specific version requires the one below
+import { BubbleMenu } from '@tiptap/react/menus'
 import type { Editor } from '@tiptap/react'
 import { Bold, Italic, Strikethrough } from 'lucide-react'
 
-// Define a simpler, correct props interface.
-// The useEditor hook returns `Editor | null`, so we accept that directly.
 interface EditorBubbleMenuProps {
   editor: Editor | null;
 }
