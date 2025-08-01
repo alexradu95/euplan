@@ -1,8 +1,9 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import * as Y from 'yjs'
 import { useSession } from 'next-auth/react'
+import { io, Socket } from 'socket.io-client'
 import type { Database } from 'sql.js'
 
 const wasmUrl = "https://sql.js.org/dist/sql-wasm.wasm";
@@ -14,6 +15,8 @@ interface YjsContextType {
   switchDocument: (documentId: string) => Promise<void>;
   createDocument: (title?: string) => Promise<string | null>;
   isLoading: boolean;
+  isConnected: boolean;
+  connectedUsers: Set<string>;
 }
 
 // Create the React Context with a default value
@@ -23,6 +26,8 @@ const YjsContext = createContext<YjsContextType>({
   switchDocument: async () => {},
   createDocument: async () => null,
   isLoading: false,
+  isConnected: false,
+  connectedUsers: new Set(),
 });
 
 // Create a custom hook to make it easy to access the context in other components
@@ -35,6 +40,11 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   const [db, setDb] = useState<Database | null>(null);
   const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState<Set<string>>(new Set());
+  
+  // WebSocket connection ref
+  const socketRef = useRef<Socket | null>(null);
 
   // Function to create a new document
   const createDocument = useCallback(async (title = "Untitled Document") => {
@@ -58,6 +68,96 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [session?.user?.id]);
 
+  // Function to connect to WebSocket server
+  const connectToSyncServer = useCallback(() => {
+    if (!session?.accessToken || socketRef.current?.connected) return;
+
+    try {
+      // Connect to sync server with authentication
+      const syncServerUrl = process.env.NODE_ENV === 'production' 
+        ? 'wss://your-sync-server.com'  // Replace with your production URL
+        : 'ws://localhost:3001';
+
+      const socket = io(`${syncServerUrl}/collaboration`, {
+        auth: {
+          token: session.accessToken
+        },
+        transports: ['websocket', 'polling']
+      });
+
+      socket.on('connect', () => {
+        console.log('Connected to sync server');
+        setIsConnected(true);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from sync server');
+        setIsConnected(false);
+        setConnectedUsers(new Set());
+      });
+
+      socket.on('auth_error', (error) => {
+        console.error('Sync server authentication failed:', error);
+        setIsConnected(false);
+      });
+
+      socket.on('join_error', (error) => {
+        console.error('Failed to join document:', error);
+      });
+
+      socket.on('update_error', (error) => {
+        console.error('Failed to process update:', error);
+      });
+
+      // Handle document synchronization
+      socket.on('document_sync', (state: number[]) => {
+        if (doc) {
+          const update = new Uint8Array(state);
+          Y.applyUpdate(doc, update);
+          console.log('Document synchronized from server');
+        }
+      });
+
+      // Handle real-time document updates
+      socket.on('document_update', (data: { update: number[]; clientId: string; userId: string }) => {
+        if (doc && data.clientId !== socket.id) {
+          const update = new Uint8Array(data.update);
+          Y.applyUpdate(doc, update);
+        }
+      });
+
+      // Handle user presence
+      socket.on('user_joined', (data: { userId: string; clientId: string }) => {
+        setConnectedUsers(prev => new Set(prev).add(data.userId));
+        console.log(`User ${data.userId} joined the document`);
+      });
+
+      socket.on('user_left', (data: { userId: string; clientId: string }) => {
+        setConnectedUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(data.userId);
+          return newSet;
+        });
+        console.log(`User ${data.userId} left the document`);
+      });
+
+      socketRef.current = socket;
+    } catch (error) {
+      console.error('Failed to connect to sync server:', error);
+      setIsConnected(false);
+    }
+  }, [session?.accessToken, doc]);
+
+  // Function to disconnect from WebSocket server
+  const disconnectFromSyncServer = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+      setConnectedUsers(new Set());
+    }
+  }, []);
+
   // Function to switch to a different document
   const switchDocument = useCallback(async (documentId: string) => {
     if (!session?.user?.id || !db) return;
@@ -65,14 +165,26 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
+      // Leave current document room if connected
+      if (socketRef.current?.connected && currentDocumentId) {
+        // Socket will automatically handle leaving the room
+      }
+      
       // Save current document if it exists
       if (doc && currentDocumentId) {
         await saveDocumentToServer(currentDocumentId, doc);
       }
       
       // Load the new document
-      await loadDocument(documentId);
-      setCurrentDocumentId(documentId);
+      const newDoc = await loadDocument(documentId);
+      if (newDoc) {
+        setCurrentDocumentId(documentId);
+        
+        // Join the new document room via WebSocket
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('join_document', { documentId });
+        }
+      }
     } catch (error) {
       console.error('Failed to switch document:', error);
     } finally {
@@ -99,8 +211,8 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   }, [session?.user?.id]);
 
   // Function to load document from server
-  const loadDocument = useCallback(async (documentId: string) => {
-    if (!session?.user?.id || !db) return;
+  const loadDocument = useCallback(async (documentId: string): Promise<Y.Doc | null> => {
+    if (!session?.user?.id || !db) return null;
     
     try {
       // First try to load from server
@@ -123,21 +235,39 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
         
+        // Set up real-time synchronization for the document
+        ydoc.on('update', (update: Uint8Array) => {
+          // Send updates to sync server if connected
+          if (socketRef.current?.connected && currentDocumentId === documentId) {
+            socketRef.current.emit('document_update', {
+              update: Array.from(update),
+              documentId: documentId
+            });
+          }
+          
+          // Save to local SQLite for offline support
+          if (db) {
+            db.run("INSERT OR REPLACE INTO documents (id, data) VALUES (?, ?)", [documentId, update]);
+            const binaryDb = db.export();
+            localStorage.setItem('euplan-sqlite-db', JSON.stringify(Array.from(binaryDb)));
+          }
+        });
+        
         setDoc(ydoc);
         return ydoc;
       }
+      return null;
     } catch (error) {
       console.error('Failed to load document:', error);
+      return null;
     }
-  }, [session?.user?.id, db]);
+  }, [session?.user?.id, db, currentDocumentId]);
 
   // Part 1: Initialize the SQLite Database
   useEffect(() => {
     const initDb = async () => {
       try {
         // Dynamically import sql.js only on the client side
-        // This tells webpack: "Don't bundle this at build time, load it at runtime!"
-        // As SqlJS needs access to fs path which is not available in the browser
         const initSqlJs = (await import('sql.js')).default;
         
         const SQL = await initSqlJs({ 
@@ -173,7 +303,21 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []); // Empty array ensures this runs only once on mount
 
-  // Part 2: Handle authentication and document loading
+  // Part 2: Handle WebSocket connection based on authentication
+  useEffect(() => {
+    if (status === 'authenticated' && session?.accessToken) {
+      connectToSyncServer();
+    } else if (status === 'unauthenticated') {
+      disconnectFromSyncServer();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      disconnectFromSyncServer();
+    };
+  }, [status, session?.accessToken, connectToSyncServer, disconnectFromSyncServer]);
+
+  // Part 3: Handle authentication and document loading
   useEffect(() => {
     const initializeUserSession = async () => {
       if (!db || !session?.user?.id || status === 'loading') return;
@@ -189,14 +333,12 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
           if (documents.length > 0) {
             // Load the most recent document
             const latestDoc = documents[0];
-            await loadDocument(latestDoc.id);
-            setCurrentDocumentId(latestDoc.id);
+            await switchDocument(latestDoc.id);
           } else {
             // Create a new document for the user
             const newDocId = await createDocument();
             if (newDocId) {
-              await loadDocument(newDocId);
-              setCurrentDocumentId(newDocId);
+              await switchDocument(newDocId);
             }
           }
         }
@@ -211,42 +353,29 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
     if (status === 'unauthenticated') {
       setDoc(null);
       setCurrentDocumentId(null);
+      disconnectFromSyncServer();
     } else if (status === 'authenticated') {
       initializeUserSession();
     }
-  }, [db, session?.user?.id, status, loadDocument, createDocument]);
+  }, [db, session?.user?.id, status]);
 
-  // Part 3: Auto-save document changes
+  // Part 4: Periodic server backup (less frequent than real-time sync)
   useEffect(() => {
     if (!doc || !currentDocumentId || !session?.user?.id) return;
 
-    const saveToLocalAndServer = async () => {
-      if (!db || !doc || !currentDocumentId) return;
-      
-      // Save to local SQLite for offline access
-      const data = Y.encodeStateAsUpdate(doc);
-      db.run("INSERT OR REPLACE INTO documents (id, data) VALUES (?, ?)", [currentDocumentId, data]);
-      
-      // Persist SQLite to localStorage
-      const binaryDb = db.export();
-      localStorage.setItem('euplan-sqlite-db', JSON.stringify(Array.from(binaryDb)));
-      
-      // Save to server
+    // Save to server every 30 seconds as backup (real-time sync happens via WebSocket)
+    const interval = setInterval(async () => {
       await saveDocumentToServer(currentDocumentId, doc);
-      
-      console.log('Document saved locally and to server.');
-    };
-
-    // Set up an interval to automatically save every 5 seconds
-    const interval = setInterval(saveToLocalAndServer, 5000);
+      console.log('Document backed up to server.');
+    }, 30000);
 
     // This is the cleanup function
     return () => {
       clearInterval(interval);
       // Perform a final save before cleaning up
-      saveToLocalAndServer();
+      saveDocumentToServer(currentDocumentId, doc);
     };
-  }, [doc, currentDocumentId, session?.user?.id, db, saveDocumentToServer]);
+  }, [doc, currentDocumentId, session?.user?.id, saveDocumentToServer]);
 
   return (
     <YjsContext.Provider value={{ 
@@ -254,7 +383,9 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
       currentDocumentId, 
       switchDocument, 
       createDocument, 
-      isLoading 
+      isLoading,
+      isConnected,
+      connectedUsers
     }}>
       {children}
     </YjsContext.Provider>
