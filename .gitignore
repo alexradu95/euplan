@@ -1,3 +1,6 @@
+# Playwright test artifacts
+.playwright
+
 # Dependencies
 node_modules
 .pnp
