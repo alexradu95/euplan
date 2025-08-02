@@ -1,1 +1,1 @@
-export const GREETING = 'Hello from Core';
+// Core package - shared utilities and types
