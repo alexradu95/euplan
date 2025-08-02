@@ -250,8 +250,13 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Load from server if content exists
         if (document.encryptedContent) {
-          const binaryData = Uint8Array.from(atob(document.encryptedContent), c => c.charCodeAt(0));
-          Y.applyUpdate(ydoc, binaryData);
+          try {
+            // Validate base64 format
+            const binaryData = Uint8Array.from(atob(document.encryptedContent), c => c.charCodeAt(0));
+            Y.applyUpdate(ydoc, binaryData);
+          } catch (error) {
+            console.error('Invalid encrypted content format:', error);
+          }
         } else {
           // Load from local SQLite as fallback
           const res = db.exec(`SELECT data FROM documents WHERE id = '${documentId}'`);

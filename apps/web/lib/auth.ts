@@ -6,6 +6,7 @@ import { db } from "./db"
 import { users } from "./db/schema"
 import { eq } from "drizzle-orm"
 import type { NextAuthConfig } from "next-auth"
+import { signToken } from "./jwt"
 
 export const authConfig: NextAuthConfig = {
   adapter: DrizzleAdapter(db),
@@ -61,9 +62,12 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       if (token.sub && session.user) {
         session.user.id = token.sub
+        // Create proper JWT token for WebSocket authentication
+        session.accessToken = signToken({
+          userId: token.sub,
+          email: session.user.email || ''
+        })
       }
-      // Create a simple access token with user ID for WebSocket auth
-      session.accessToken = token.sub
       return session
     },
     async jwt({ token, user }) {

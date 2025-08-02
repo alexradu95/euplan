@@ -10,10 +10,14 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { LoggerService } from '../common/logger.service';
 import { Server, Socket } from 'socket.io';
 import * as Y from 'yjs';
 import { ConfigService } from '@nestjs/config';
 import { DocumentsService } from '../documents/documents.service';
+import { JwtService } from '../auth/jwt.service';
+import { JoinDocumentSchema, DocumentUpdateSchema, AwarenessUpdateSchema } from '../validation/schemas';
+import { ZodError } from 'zod';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -47,7 +51,9 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly documentsService: DocumentsService
+    private readonly documentsService: DocumentsService,
+    private readonly jwtService: JwtService,
+    private readonly loggerService: LoggerService
   ) {
     this.logger.log('🔌 CollaborationGateway initialized');
     // Periodic save to database
@@ -58,30 +64,30 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
    * Handle new client connections
    */
   async handleConnection(client: AuthenticatedSocket) {
-    this.logger.log(`New client connection attempt: ${client.id}`);
-    this.logger.log(`Handshake auth:`, client.handshake.auth);
-    this.logger.log(`Handshake query:`, client.handshake.query);
+    this.loggerService.wsLog('New client connection attempt', client.id);
     
     try {
       const token = client.handshake.auth?.token || client.handshake.query?.token;
-      
-      this.logger.log(`Extracted token: ${token}`);
       
       if (!token) {
         throw new UnauthorizedException('No authentication token provided');
       }
 
-      // For now, use simple token validation (user ID directly)
-      // In production, implement proper JWT verification or session validation
-      if (typeof token === 'string' && token.length > 0) {
-        client.userId = token;
-        this.logger.log(`✅ Client ${client.id} authenticated with user ID: ${client.userId}`);
-      } else {
-        throw new UnauthorizedException('Invalid authentication token');
+      // Verify JWT token
+      const payload = this.jwtService.verifyToken(token);
+      if (!payload) {
+        throw new UnauthorizedException('Invalid or expired authentication token');
       }
+
+      client.userId = payload.userId;
+      this.loggerService.authLog('Client authenticated successfully', payload.userId, {
+        clientId: client.id,
+        email: payload.email
+      });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      this.logger.error('❌ Authentication failed:', errorMessage);
+      this.loggerService.authError('Authentication failed', error instanceof Error ? error : new Error(String(error)), undefined, {
+        clientId: client.id
+      });
       client.emit('auth_error', { message: 'Authentication failed' });
       client.disconnect();
     }
@@ -103,10 +109,12 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('join_document')
   async handleJoinDocument(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { documentId: string }
+    @MessageBody() data: any
   ) {
     try {
-      const { documentId } = data;
+      // Validate input data
+      const validatedData = JoinDocumentSchema.parse(data);
+      const { documentId } = validatedData;
       
       if (!client.userId) {
         throw new UnauthorizedException('Client not authenticated');
@@ -159,6 +167,12 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       this.logger.log(`📢 Notified ${room.clients.size - 1} other clients about new user joining`);
 
     } catch (error) {
+      if (error instanceof ZodError) {
+        this.logger.error('Invalid join document data:', error.errors);
+        client.emit('join_error', { message: 'Invalid document data' });
+        return;
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to join document';
       this.logger.error('Failed to join document:', errorMessage);
       client.emit('join_error', { message: errorMessage });
@@ -171,13 +185,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('document_update')
   async handleDocumentUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { update: number[]; documentId: string }
+    @MessageBody() data: any
   ) {
     try {
-      const { update, documentId } = data;
+      // Validate input data
+      const validatedData = DocumentUpdateSchema.parse(data);
+      const { update, documentId } = validatedData;
       
-      console.log(`📝 Received document update from client ${client.id} for document ${documentId}`);
-      console.log(`Update size: ${update.length} bytes`);
+      this.loggerService.wsLog('Received document update', client.id, {
+        documentId,
+        updateSize: update.length,
+        userId: client.userId
+      });
       
       if (!client.userId || client.documentId !== documentId) {
         throw new UnauthorizedException('Invalid document access');
@@ -198,7 +217,11 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       const updateArray = new Uint8Array(update);
       Y.applyUpdate(room.ydoc, updateArray);
 
-      console.log(`📡 Broadcasting update to ${room.clients.size - 1} other clients in room ${documentId}`);
+      this.loggerService.wsLog('Broadcasting update to clients', client.id, {
+        documentId,
+        clientCount: room.clients.size - 1,
+        userId: client.userId
+      });
 
       // Broadcast the update to all other clients in the room
       client.to(documentId).emit('document_update', { 
@@ -210,9 +233,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       // Mark as needing save
       room.lastSaved = Date.now();
 
-      console.log(`✅ Update processed successfully for document ${documentId}`);
+      this.loggerService.wsLog('Update processed successfully', client.id, {
+        documentId,
+        userId: client.userId
+      });
 
     } catch (error) {
+      if (error instanceof ZodError) {
+        this.logger.error('Invalid document update data:', error.errors);
+        client.emit('update_error', { message: 'Invalid update data' });
+        return;
+      }
+      
       const errorMessage = error instanceof Error ? error.message : 'Failed to process document update';
       this.logger.error('Failed to process document update:', errorMessage);
       client.emit('update_error', { message: errorMessage });

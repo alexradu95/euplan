@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents, documentAccess } from '@/lib/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
+import { CreateDocumentSchema } from '@/lib/validation/schemas'
+import { ZodError } from 'zod'
 
 // GET /api/documents - List user's documents
 export async function GET() {
@@ -46,14 +48,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { title } = await request.json()
+    const rawData = await request.json()
+    const validatedData = CreateDocumentSchema.parse(rawData)
 
     // Create the document
     const [newDocument] = await db
       .insert(documents)
       .values({
         userId: session.user.id,
-        title: title || 'Untitled Document',
+        title: validatedData.title,
         encryptedContent: null,
       })
       .returning({ id: documents.id })
@@ -70,6 +73,13 @@ export async function POST(request: NextRequest) {
       message: 'Document created successfully' 
     })
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      )
+    }
+    
     console.error('Error creating document:', error)
     return NextResponse.json(
       { error: 'Failed to create document' },

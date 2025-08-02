@@ -3,18 +3,16 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { CreateUserSchema } from '@/lib/validation/schemas'
+import { ZodError } from 'zod'
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json()
+    const rawData = await request.json()
 
-    // Validate input
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+    // Validate input with Zod
+    const validatedData = CreateUserSchema.parse(rawData)
+    const { name, email, password } = validatedData
 
     // Check if user already exists
     const existingUser = await db
@@ -46,6 +44,13 @@ export async function POST(request: Request) {
       { status: 201 }
     )
   } catch (error) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: error.errors },
+        { status: 400 }
+      )
+    }
+    
     console.error('Signup error:', error)
     return NextResponse.json(
       { error: 'Failed to create user' },
