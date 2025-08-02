@@ -1,6 +1,25 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { ServerOptions } from 'socket.io';
+
+class SocketIoAdapter extends IoAdapter {
+  createIOServer(port: number, options?: ServerOptions): any {
+    const cors = {
+      origin: process.env.NODE_ENV === 'production' 
+        ? ['https://your-domain.com'] 
+        : ['http://localhost:3000'],
+      credentials: true,
+    };
+    
+    const optionsWithCors: ServerOptions = {
+      ...options,
+      cors,
+    };
+
+    return super.createIOServer(port, optionsWithCors);
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -12,8 +31,8 @@ async function bootstrap() {
     }
   });
   
-  // Configure WebSocket adapter
-  app.useWebSocketAdapter(new IoAdapter(app));
+  // Configure WebSocket adapter with CORS
+  app.useWebSocketAdapter(new SocketIoAdapter(app));
   
   await app.listen(process.env.PORT ?? 3001);
   console.log(`🚀 Sync server running on port ${process.env.PORT ?? 3001}`);

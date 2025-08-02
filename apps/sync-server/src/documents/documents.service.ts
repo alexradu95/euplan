@@ -7,7 +7,7 @@ import { Injectable, Inject, ForbiddenException, NotFoundException } from '@nest
 import * as Y from 'yjs';
 import { DATABASE_CONNECTION } from '../database/database.module';
 import { documents, documentAccess } from '../database/schema';
-import { and, eq } from 'drizzle-orm/sql';
+import { and, eq } from 'drizzle-orm';
 
 export interface DocumentPersistenceService {
   loadDocument(documentId: string, userId: string): Promise<Y.Doc>;
@@ -25,45 +25,65 @@ export class DocumentsService implements DocumentPersistenceService {
    * Load a Y.js document from PostgreSQL
    */
   async loadDocument(documentId: string, userId: string): Promise<Y.Doc> {
-    // Check if user has access to this document
-    const userAccess = await this.db
-      .select({
-        document: {
+    try {
+      console.log(`Loading document ${documentId} for user ${userId}`);
+      
+      // First, check if the document exists
+      const document = await this.db
+        .select({
           id: documents.id,
           encryptedContent: documents.encryptedContent,
-        },
-        accessLevel: documentAccess.accessLevel,
-      })
-      .from(documents)
-      .innerJoin(documentAccess, eq(documents.id, documentAccess.documentId))
-      .where(
-        and(
-          eq(documents.id, documentId),
-          eq(documentAccess.userId, userId)
-        )
-      )
-      .limit(1);
+        })
+        .from(documents)
+        .where(eq(documents.id, documentId))
+        .limit(1);
 
-    if (userAccess.length === 0) {
-      throw new NotFoundException('Document not found or access denied');
-    }
+      console.log(`Document query result:`, document);
 
-    const ydoc = new Y.Doc();
-
-    // Load document content if it exists
-    if (userAccess[0].document.encryptedContent) {
-      try {
-        const binaryData = Uint8Array.from(
-          atob(userAccess[0].document.encryptedContent), 
-          c => c.charCodeAt(0)
-        );
-        Y.applyUpdate(ydoc, binaryData);
-      } catch (error) {
-        console.error('Failed to load document content:', error);
+      if (document.length === 0) {
+        throw new NotFoundException('Document not found');
       }
-    }
 
-    return ydoc;
+      // Then check if user has access
+      const accessCheck = await this.db
+        .select({
+          accessLevel: documentAccess.accessLevel,
+        })
+        .from(documentAccess)
+        .where(
+          and(
+            eq(documentAccess.documentId, documentId),
+            eq(documentAccess.userId, userId)
+          )
+        )
+        .limit(1);
+
+      console.log(`Access check result:`, accessCheck);
+
+      if (accessCheck.length === 0) {
+        throw new NotFoundException('Access denied');
+      }
+
+      const ydoc = new Y.Doc();
+
+      // Load document content if it exists
+      if (document[0].encryptedContent) {
+        try {
+          const binaryData = Uint8Array.from(
+            atob(document[0].encryptedContent), 
+            c => c.charCodeAt(0)
+          );
+          Y.applyUpdate(ydoc, binaryData);
+        } catch (error) {
+          console.error('Failed to load document content:', error);
+        }
+      }
+
+      return ydoc;
+    } catch (error) {
+      console.error('Error in loadDocument:', error);
+      throw error;
+    }
   }
 
   /**
