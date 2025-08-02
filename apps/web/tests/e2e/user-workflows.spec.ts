@@ -36,6 +36,7 @@ test.describe('User Authentication and Onboarding', () => {
     await page.goto('/signup');
     
     const uniqueEmail = `test-${Date.now()}@example.com`;
+    await page.fill('[data-testid="name-input"]', 'Test User');
     await page.fill('[data-testid="email-input"]', uniqueEmail);
     await page.fill('[data-testid="password-input"]', 'securePassword123');
     await page.fill('[data-testid="confirm-password-input"]', 'securePassword123');
