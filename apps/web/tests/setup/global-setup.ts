@@ -69,12 +69,13 @@ async function globalSetup(config: FullConfig) {
     await page.goto('http://localhost:3000/signup');
     
     const testUsers = [
-      { email: 'test1@example.com', password: 'password123' },
-      { email: 'test2@example.com', password: 'password123' },
+      { name: 'Test User 1', email: 'test1@example.com', password: 'password123' },
+      { name: 'Test User 2', email: 'test2@example.com', password: 'password123' },
     ];
 
     for (const user of testUsers) {
       try {
+        await page.fill('[data-testid="name-input"]', user.name);
         await page.fill('[data-testid="email-input"]', user.email);
         await page.fill('[data-testid="password-input"]', user.password);
         await page.fill('[data-testid="confirm-password-input"]', user.password);
