@@ -88,6 +88,9 @@ module.exports = {
   // Error handling
   errorOnDeprecated: true,
   
+  // Force exit after tests complete
+  forceExit: true,
+  
   // Test result processor (uncomment when results-processor.js is ready)
   testResultsProcessor: '<rootDir>/test/results-processor.js',
 };

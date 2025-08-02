@@ -1,5 +1,9 @@
 # Playwright test artifacts
 .playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
 
 # Dependencies
 node_modules
@@ -37,6 +41,12 @@ pids
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
+
+# Jest coverage and test artifacts
+jest-coverage/
+test-results.xml
+results.json
+results.xml
 
 # nyc test coverage
 .nyc_output
@@ -103,3 +113,17 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test artifacts and screenshots
+**/test-results/
+**/playwright-report/
+**/*.png
+**/*.webm
+**/*-chromium/
+**/*-firefox/
+**/*-webkit/
+**/*-Microsoft-Edge/
+**/*-Mobile-Chrome/
+**/*-Mobile-Safari/
+**/*-Google-Chrome/
+**/error-context.md
