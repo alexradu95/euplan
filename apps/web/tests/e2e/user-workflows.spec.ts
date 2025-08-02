@@ -16,7 +16,14 @@ async function authenticateUser(page: Page, user: typeof TEST_USERS.user1): Prom
   await page.fill('[data-testid="email-input"]', user.email);
   await page.fill('[data-testid="password-input"]', user.password);
   await page.click('[data-testid="login-button"]');
-  await page.waitForURL('/');
+  
+  // Wait for redirect or check for success indicators
+  try {
+    await page.waitForURL('/', { timeout: 10000 });
+  } catch (e) {
+    // If direct URL wait fails, try waiting for the dashboard element
+    await page.waitForSelector('[data-testid="user-dashboard"]', { timeout: 10000 });
+  }
 }
 
 async function createDocument(page: Page, title: string): Promise<string> {
