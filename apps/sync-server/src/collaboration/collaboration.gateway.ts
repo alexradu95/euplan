@@ -131,10 +131,13 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
           clients: new Set(),
           lastSaved: Date.now(),
         });
+        this.logger.log(`🏠 Created new document room for: ${documentId}`);
       }
 
       const room = this.documents.get(documentId)!;
       room.clients.add(client);
+
+      this.logger.log(`👥 Room ${documentId} now has ${room.clients.size} clients connected`);
 
       // Sync the server document with the loaded document
       const serverState = Y.encodeStateAsUpdate(ydoc);
@@ -144,13 +147,15 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       const currentState = Y.encodeStateAsUpdate(room.ydoc);
       client.emit('document_sync', Array.from(currentState));
 
-      this.logger.log(`Client ${client.id} joined document: ${documentId}`);
+      this.logger.log(`✅ Client ${client.id} joined document: ${documentId}`);
       
       // Notify other clients about the new connection
       client.to(documentId).emit('user_joined', { 
         userId: client.userId, 
         clientId: client.id 
       });
+
+      this.logger.log(`📢 Notified ${room.clients.size - 1} other clients about new user joining`);
 
     } catch (error) {
       this.logger.error('Failed to join document:', error.message);
@@ -168,6 +173,9 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   ) {
     try {
       const { update, documentId } = data;
+      
+      console.log(`📝 Received document update from client ${client.id} for document ${documentId}`);
+      console.log(`Update size: ${update.length} bytes`);
       
       if (!client.userId || client.documentId !== documentId) {
         throw new UnauthorizedException('Invalid document access');
@@ -188,6 +196,8 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       const updateArray = new Uint8Array(update);
       Y.applyUpdate(room.ydoc, updateArray);
 
+      console.log(`📡 Broadcasting update to ${room.clients.size - 1} other clients in room ${documentId}`);
+
       // Broadcast the update to all other clients in the room
       client.to(documentId).emit('document_update', { 
         update: update,
@@ -197,6 +207,8 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
       // Mark as needing save
       room.lastSaved = Date.now();
+
+      console.log(`✅ Update processed successfully for document ${documentId}`);
 
     } catch (error) {
       this.logger.error('Failed to process document update:', error.message);

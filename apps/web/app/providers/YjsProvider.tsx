@@ -45,6 +45,13 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   
   // WebSocket connection ref
   const socketRef = useRef<Socket | null>(null);
+  // Document ref to access current document in event handlers
+  const docRef = useRef<Y.Doc | null>(null);
+
+  // Update docRef whenever doc changes
+  useEffect(() => {
+    docRef.current = doc;
+  }, [doc]);
 
   // Function to create a new document
   const createDocument = useCallback(async (title = "Untitled Document") => {
@@ -124,18 +131,23 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Handle document synchronization
       socket.on('document_sync', (state: number[]) => {
-        if (doc) {
+        if (docRef.current) {
           const update = new Uint8Array(state);
-          Y.applyUpdate(doc, update);
+          Y.applyUpdate(docRef.current, update);
           console.log('Document synchronized from server');
         }
       });
 
       // Handle real-time document updates
       socket.on('document_update', (data: { update: number[]; clientId: string; userId: string }) => {
-        if (doc && data.clientId !== socket.id) {
+        console.log(`📥 Received document update from server. ClientId: ${data.clientId}, UserId: ${data.userId}, Size: ${data.update.length} bytes`);
+        
+        if (docRef.current && data.clientId !== socket.id) {
+          console.log(`✅ Applying update from another client to local document`);
           const update = new Uint8Array(data.update);
-          Y.applyUpdate(doc, update);
+          Y.applyUpdate(docRef.current, update);
+        } else {
+          console.log(`❌ Ignoring update: doc=${!!docRef.current}, isOwnUpdate=${data.clientId === socket.id}`);
         }
       });
 
@@ -159,7 +171,7 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Failed to connect to sync server:', error);
       setIsConnected(false);
     }
-  }, [session?.accessToken, doc]);
+  }, [session?.accessToken]); // Removed 'doc' dependency
 
   // Function to disconnect from WebSocket server
   const disconnectFromSyncServer = useCallback(() => {
@@ -188,11 +200,12 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         await saveDocumentToServer(currentDocumentId, doc);
       }
       
+      // Set the current document ID BEFORE loading the document
+      setCurrentDocumentId(documentId);
+      
       // Load the new document
       const newDoc = await loadDocument(documentId);
       if (newDoc) {
-        setCurrentDocumentId(documentId);
-        
         // Join the new document room via WebSocket
         if (socketRef.current?.connected) {
           socketRef.current.emit('join_document', { documentId });
@@ -250,12 +263,18 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Set up real-time synchronization for the document
         ydoc.on('update', (update: Uint8Array) => {
+          console.log(`📝 Local Y.js document updated, sending to server. Size: ${update.length} bytes`);
+          
           // Send updates to sync server if connected
-          if (socketRef.current?.connected && currentDocumentId === documentId) {
+          // Use the documentId parameter directly instead of currentDocumentId state
+          if (socketRef.current?.connected) {
+            console.log(`🚀 Emitting update to sync server for document ${documentId}`);
             socketRef.current.emit('document_update', {
               update: Array.from(update),
               documentId: documentId
             });
+          } else {
+            console.log(`❌ Not sending to server: connected=${socketRef.current?.connected}`);
           }
           
           // Save to local SQLite for offline support
