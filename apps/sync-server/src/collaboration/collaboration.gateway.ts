@@ -39,7 +39,7 @@ interface DocumentRoom {
 })
 export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(CollaborationGateway.name);
   private readonly documents = new Map<string, DocumentRoom>();
@@ -80,7 +80,8 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         throw new UnauthorizedException('Invalid authentication token');
       }
     } catch (error) {
-      this.logger.error('❌ Authentication failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      this.logger.error('❌ Authentication failed:', errorMessage);
       client.emit('auth_error', { message: 'Authentication failed' });
       client.disconnect();
     }
@@ -158,8 +159,9 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       this.logger.log(`📢 Notified ${room.clients.size - 1} other clients about new user joining`);
 
     } catch (error) {
-      this.logger.error('Failed to join document:', error.message);
-      client.emit('join_error', { message: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to join document';
+      this.logger.error('Failed to join document:', errorMessage);
+      client.emit('join_error', { message: errorMessage });
     }
   }
 
@@ -211,8 +213,9 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       console.log(`✅ Update processed successfully for document ${documentId}`);
 
     } catch (error) {
-      this.logger.error('Failed to process document update:', error.message);
-      client.emit('update_error', { message: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process document update';
+      this.logger.error('Failed to process document update:', errorMessage);
+      client.emit('update_error', { message: errorMessage });
     }
   }
 
@@ -239,7 +242,8 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       });
 
     } catch (error) {
-      this.logger.error('Failed to process awareness update:', error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to process awareness update';
+      this.logger.error('Failed to process awareness update:', errorMessage);
     }
   }
 
@@ -257,7 +261,8 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         try {
           await this.documentsService.saveDocument(documentId, client.userId!, room.ydoc);
         } catch (error) {
-          this.logger.error(`Failed to save document ${documentId}:`, error.message);
+          const errorMessage = error instanceof Error ? error.message : 'Failed to save document';
+          this.logger.error(`Failed to save document ${documentId}:`, errorMessage);
         }
         
         this.documents.delete(documentId);
@@ -289,9 +294,10 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         if (anyClient?.userId) {
           const savePromise = (async () => {
             try {
-              await this.documentsService.saveDocument(documentId, anyClient.userId, room.ydoc);
+              await this.documentsService.saveDocument(documentId, anyClient.userId!, room.ydoc);
             } catch (error) {
-              this.logger.error(`Failed to auto-save document ${documentId}:`, error.message);
+              const errorMessage = error instanceof Error ? error.message : 'Failed to auto-save document';
+              this.logger.error(`Failed to auto-save document ${documentId}:`, errorMessage);
             }
           })();
           

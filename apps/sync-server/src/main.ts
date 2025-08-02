@@ -12,10 +12,10 @@ class SocketIoAdapter extends IoAdapter {
       credentials: true,
     };
     
-    const optionsWithCors: ServerOptions = {
-      ...options,
+    const optionsWithCors = {
       cors,
-    };
+      ...(options || {}),
+    } as ServerOptions;
 
     return super.createIOServer(port, optionsWithCors);
   }
