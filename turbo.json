@@ -9,6 +9,23 @@
       "cache": false,
       "persistent": true
     },
-    "lint": {}
+    "lint": {},
+    "test": {
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "tests/**/*.ts", "**/*.spec.ts", "**/*.test.ts"]
+    },
+    "test:unit": {
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "**/*.spec.ts", "**/*.test.ts"]
+    },
+    "test:e2e": {
+      "inputs": ["tests/**/*.ts", "tests/**/*.spec.ts"]
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    }
   }
 }

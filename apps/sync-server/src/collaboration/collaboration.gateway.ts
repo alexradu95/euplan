@@ -287,11 +287,13 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         // Get any user from the room for saving (all have access)
         const anyClient = Array.from(room.clients)[0];
         if (anyClient?.userId) {
-          const savePromise = this.documentsService
-            .saveDocument(documentId, anyClient.userId, room.ydoc)
-            .catch(error => {
+          const savePromise = (async () => {
+            try {
+              await this.documentsService.saveDocument(documentId, anyClient.userId, room.ydoc);
+            } catch (error) {
               this.logger.error(`Failed to auto-save document ${documentId}:`, error.message);
-            });
+            }
+          })();
           
           savePromises.push(savePromise);
         }

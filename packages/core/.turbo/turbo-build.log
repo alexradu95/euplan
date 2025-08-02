@@ -1,17 +1,16 @@
 
-> @euplan/core@1.0.0 build D:\euplan\packages\core
+> @euplan/core@1.0.0 build /mnt/d/euplan/packages/core
 > tsup src/index.ts --format cjs,esm --dts
 
-[34mCLI[39m Building entry: src/index.ts
-[34mCLI[39m tsup v8.5.0
-[34mCLI[39m Target: node16
-[34mCJS[39m Build start
-[34mESM[39m Build start
-[32mESM[39m [1mdist\index.mjs [22m[32m73.00 B[39m
-[32mESM[39m ⚡️ Build success in 31ms
-[32mCJS[39m [1mdist\index.js [22m[32m1.04 KB[39m
-[32mCJS[39m ⚡️ Build success in 31ms
-[34mDTS[39m Build start
-[32mDTS[39m ⚡️ Build success in 510ms
-[32mDTS[39m [1mdist\index.d.ts  [22m[32m66.00 B[39m
-[32mDTS[39m [1mdist\index.d.mts [22m[32m66.00 B[39m
+Error: Cannot find module @rollup/rollup-linux-x64-gnu. npm has a bug related to optional dependencies (https://github.com/npm/cli/issues/4828). Please try `npm i` again after removing both package-lock.json and node_modules directory.
+    at requireWithFriendlyError (/mnt/d/euplan/node_modules/.pnpm/rollup@4.46.2/node_modules/rollup/dist/native.js:64:9)
+    at Object.<anonymous> (/mnt/d/euplan/node_modules/.pnpm/rollup@4.46.2/node_modules/rollup/dist/native.js:73:76)
+    at Module._compile (node:internal/modules/cjs/loader:1692:14)
+    at Object..js (node:internal/modules/cjs/loader:1824:10)
+    at Module.load (node:internal/modules/cjs/loader:1427:32)
+    at Module._load (node:internal/modules/cjs/loader:1250:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1449:12)
+    at require (node:internal/modules/helpers:135:16)
+ ELIFECYCLE  Command failed with exit code 1.
