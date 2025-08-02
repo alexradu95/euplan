@@ -52,7 +52,7 @@ module.exports = {
   },
   
   // Setup files (uncomment when setup.ts is ready)
-  // setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
   
   // Module path mapping
   moduleNameMapper: {

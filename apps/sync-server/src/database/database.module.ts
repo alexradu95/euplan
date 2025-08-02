@@ -1,16 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleDestroy, Inject } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
 
 export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
+export const DATABASE_POOL = 'DATABASE_POOL';
 
 @Module({
   imports: [ConfigModule],
   providers: [
     {
-      provide: DATABASE_CONNECTION,
+      provide: DATABASE_POOL,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         // Try multiple environment variable names to match the web app
@@ -37,10 +38,25 @@ export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
           connectionString: connectionString,
         });
         
+        return pool;
+      },
+    },
+    {
+      provide: DATABASE_CONNECTION,
+      inject: [DATABASE_POOL],
+      useFactory: (pool: Pool) => {
         return drizzle(pool, { schema });
       },
     },
   ],
-  exports: [DATABASE_CONNECTION],
+  exports: [DATABASE_CONNECTION, DATABASE_POOL],
 })
-export class DatabaseModule {}
+export class DatabaseModule implements OnModuleDestroy {
+  constructor(
+    @Inject(DATABASE_POOL) private readonly pool: Pool,
+  ) {}
+
+  async onModuleDestroy() {
+    await this.pool.end();
+  }
+}

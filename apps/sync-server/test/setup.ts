@@ -16,6 +16,9 @@ beforeAll(async () => {
 afterAll(async () => {
   // Clean up any global resources
   console.log('🧹 Test environment cleaned up');
+  
+  // Force close any remaining handles
+  await new Promise(resolve => setTimeout(resolve, 100));
 });
 
 // Mock external dependencies
