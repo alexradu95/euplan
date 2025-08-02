@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useYjs } from '../providers/YjsProvider'
-import { ChevronDown, Plus, LogOut, FileText } from 'lucide-react'
+import { ChevronDown, Plus, LogOut, FileText, Wifi, WifiOff, Users } from 'lucide-react'
 
 interface Document {
   id: string
@@ -15,7 +15,7 @@ interface Document {
 
 export default function DocumentHeader() {
   const { data: session } = useSession()
-  const { currentDocumentId, switchDocument, createDocument, isLoading } = useYjs()
+  const { currentDocumentId, switchDocument, createDocument, isLoading, isConnected, connectedUsers } = useYjs()
   const [documents, setDocuments] = useState<Document[]>([])
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -147,11 +147,39 @@ export default function DocumentHeader() {
           )}
         </div>
 
-        {/* User Info and Logout */}
+        {/* Connection Status and User Info */}
         <div className="flex items-center space-x-4">
+          {/* Real-time Sync Status */}
+          <div className="flex items-center space-x-2">
+            {isConnected ? (
+              <div className="flex items-center space-x-1 text-green-600">
+                <Wifi className="h-4 w-4" />
+                <span className="text-xs font-medium">Live</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-gray-400">
+                <WifiOff className="h-4 w-4" />
+                <span className="text-xs font-medium">Offline</span>
+              </div>
+            )}
+          </div>
+
+          {/* Connected Users Count */}
+          {connectedUsers.size > 0 && (
+            <div className="flex items-center space-x-1 text-blue-600">
+              <Users className="h-4 w-4" />
+              <span className="text-xs font-medium">
+                {connectedUsers.size} {connectedUsers.size === 1 ? 'user' : 'users'}
+              </span>
+            </div>
+          )}
+
+          {/* User Email */}
           <span className="text-sm text-gray-600">
             {session.user?.email}
           </span>
+
+          {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
             className="flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"

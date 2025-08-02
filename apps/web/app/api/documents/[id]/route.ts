@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm'
 // GET /api/documents/[id] - Get specific document
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const documentId = params.id
+    const { id: documentId } = await params
 
     // Check if user has access to this document
     const userAccess = await db
@@ -63,7 +63,7 @@ export async function GET(
 // PATCH /api/documents/[id] - Update document content
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -72,7 +72,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const documentId = params.id
+    const { id: documentId } = await params
     const { encryptedContent, title } = await request.json()
 
     // Check if user has write access to this document
@@ -132,7 +132,7 @@ export async function PATCH(
 // DELETE /api/documents/[id] - Delete document (owner only)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth()
@@ -141,7 +141,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const documentId = params.id
+    const { id: documentId } = await params
 
     // Check if user is the owner of this document
     const userAccess = await db
