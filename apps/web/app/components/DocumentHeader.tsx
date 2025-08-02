@@ -95,9 +95,10 @@ export default function DocumentHeader() {
             onClick={() => setShowDropdown(!showDropdown)}
             disabled={isLoading}
             className="flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            data-testid="create-document-button"
           >
             <FileText className="h-4 w-4" />
-            <span className="max-w-48 truncate">
+            <span className="max-w-48 truncate" data-testid="document-title">
               {isLoading ? 'Loading...' : currentDocument?.title || 'Select Document'}
             </span>
             <ChevronDown className="h-4 w-4" />
@@ -117,7 +118,7 @@ export default function DocumentHeader() {
                 </button>
 
                 {/* Document List */}
-                <div className="mt-2 border-t border-gray-100 pt-2">
+                <div className="mt-2 border-t border-gray-100 pt-2" data-testid="document-list">
                   {documents.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500">
                       No documents found
@@ -130,6 +131,7 @@ export default function DocumentHeader() {
                         className={`flex w-full items-start space-x-2 rounded-md px-3 py-2 text-left text-sm hover:bg-gray-100 ${
                           doc.id === currentDocumentId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
                         }`}
+                        data-testid="document-item"
                       >
                         <FileText className="mt-0.5 h-4 w-4 flex-shrink-0" />
                         <div className="min-w-0 flex-1">
@@ -175,7 +177,7 @@ export default function DocumentHeader() {
           )}
 
           {/* User Email */}
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-600" data-testid="user-menu">
             {session.user?.email}
           </span>
 
@@ -183,6 +185,7 @@ export default function DocumentHeader() {
           <button
             onClick={handleSignOut}
             className="flex items-center space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            data-testid="logout-button"
           >
             <LogOut className="h-4 w-4" />
             <span>Sign Out</span>

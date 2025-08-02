@@ -63,7 +63,7 @@ const TiptapEditor = () => {
   }
 
   return (
-    <div className="relative border border-gray-300 rounded-lg p-4 min-h-[400px]">
+    <div className="relative border border-gray-300 rounded-lg p-4 min-h-[400px]" data-testid="editor-content">
       <Toolbar editor={editor} />
       <EditorBubbleMenu editor={editor} />
       <EditorContent editor={editor} />

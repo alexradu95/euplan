@@ -11,7 +11,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" data-testid="user-dashboard">
       <DocumentHeader />
       <main className="flex flex-col items-center p-6">
         <div className="w-full max-w-4xl">

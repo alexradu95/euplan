@@ -96,6 +96,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              data-testid="email-input"
               required
             />
           </div>
@@ -110,6 +111,7 @@ export default function SignupPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              data-testid="password-input"
               required
               minLength={8}
             />
@@ -125,6 +127,7 @@ export default function SignupPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              data-testid="confirm-password-input"
               required
             />
           </div>
@@ -134,6 +137,7 @@ export default function SignupPage() {
               type="submit"
               disabled={isLoading}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+              data-testid="signup-button"
             >
               {isLoading ? 'Creating Account...' : 'Sign Up'}
             </button>

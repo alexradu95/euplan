@@ -33,7 +33,7 @@ export default function LoginPage() {
       })
 
       if (result?.error) {
-        setError('Invalid email or password')
+        setError('Invalid credentials')
       } else {
         router.push('/')
         router.refresh()
@@ -58,7 +58,7 @@ export default function LoginPage() {
           )}
           
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" data-testid="error-message">
               {error}
             </div>
           )}
@@ -73,6 +73,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              data-testid="email-input"
               required
             />
           </div>
@@ -87,6 +88,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline"
+              data-testid="password-input"
               required
             />
           </div>
@@ -96,6 +98,7 @@ export default function LoginPage() {
               type="submit"
               disabled={isLoading}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:opacity-50"
+              data-testid="login-button"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
