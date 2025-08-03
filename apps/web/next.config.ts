@@ -1,6 +1,7 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  webpack: (config: { resolve: { fallback: any; }; }, { isServer }: any) => {
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  webpack: (config: { resolve: { fallback: Record<string, boolean | string> } }, { isServer }: { isServer: boolean }) => {
     // Don't resolve 'fs' module on the client side
     if (!isServer) {
       config.resolve.fallback = {
@@ -14,4 +15,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

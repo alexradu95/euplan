@@ -16,12 +16,16 @@ import { DocumentsService } from '../documents/documents.service';
 import { JwtService } from '../auth/jwt.service';
 import { JoinDocumentSchema, DocumentUpdateSchema, AwarenessUpdateSchema } from '../validation/schemas';
 import { ZodError } from 'zod';
+import type { 
+  AuthenticatedSocket, 
+  JoinDocumentMessage, 
+  DocumentUpdateMessage, 
+  AwarenessUpdateMessage 
+} from '../types/websocket';
+import { config } from '../config/environment';
+import { ErrorHandler } from '../common/error-handler';
+import { RateLimiter } from '../security/rate-limiter';
 
-interface AuthenticatedSocket extends Socket {
-  userId?: string;
-  documentId?: string;
-  ydoc?: Y.Doc;
-}
 
 interface DocumentRoom {
   ydoc: Y.Doc;
@@ -33,9 +37,7 @@ interface DocumentRoom {
 @WebSocketGateway({
   namespace: '/collaboration',
   cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ['https://your-domain.com'] 
-      : ['http://localhost:3000'],
+    origin: config.getAllowedOrigins(),
     credentials: true,
   },
 })
@@ -45,7 +47,23 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
   private readonly logger = new Logger(CollaborationGateway.name);
   private readonly documents = new Map<string, DocumentRoom>();
-  private readonly saveInterval = 5000; // Save every 5 seconds
+  private readonly saveInterval = config.getNumber('WS_SAVE_INTERVAL');
+  
+  // Rate limiters
+  private readonly connectionRateLimit = RateLimiter.create('connection', {
+    windowMs: 60000, // 1 minute
+    maxRequests: 10, // 10 connections per minute
+  });
+  
+  private readonly messageRateLimit = RateLimiter.create('message', {
+    windowMs: 1000, // 1 second
+    maxRequests: 30, // 30 messages per second
+  });
+  
+  private readonly documentUpdateRateLimit = RateLimiter.create('document_update', {
+    windowMs: 1000, // 1 second
+    maxRequests: 10, // 10 updates per second
+  });
 
   constructor(
     private readonly configService: ConfigService,
@@ -62,6 +80,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
    * Handle new client connections
    */
   async handleConnection(client: AuthenticatedSocket) {
+    // Rate limit connections
+    if (!this.connectionRateLimit(client.id)) {
+      this.logger.warn(`Connection rate limit exceeded for client ${client.id}`);
+      client.emit('auth_error', {
+        message: 'Too many connection attempts. Please try again later.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        shouldRetry: true,
+      });
+      client.disconnect();
+      return;
+    }
+    
     this.loggerService.wsLog('New client connection attempt', client.id);
     
     try {
@@ -83,10 +113,16 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         email: payload.email
       });
     } catch (error) {
-      this.loggerService.authError('Authentication failed', error instanceof Error ? error : new Error(String(error)), undefined, {
-        clientId: client.id
+      const errorResponse = ErrorHandler.handleError(error, {
+        clientId: client.id,
+        operation: 'authentication',
       });
-      client.emit('auth_error', { message: 'Authentication failed' });
+      
+      client.emit('auth_error', {
+        message: errorResponse.message,
+        code: errorResponse.code,
+        shouldRetry: errorResponse.shouldRetry,
+      });
       client.disconnect();
     }
   }
@@ -107,8 +143,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('join_document')
   async handleJoinDocument(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: any
+    @MessageBody() data: unknown
   ) {
+    // Rate limit messages
+    if (!this.messageRateLimit(client.id)) {
+      client.emit('join_error', {
+        message: 'Too many requests. Please slow down.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        shouldRetry: true,
+      });
+      return;
+    }
+    
     try {
       // Validate input data
       const validatedData = JoinDocumentSchema.parse(data);
@@ -165,15 +211,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       this.logger.log(`📢 Notified ${room.clients.size - 1} other clients about new user joining`);
 
     } catch (error) {
-      if (error instanceof ZodError) {
-        this.logger.error('Invalid join document data:', error.issues);
-        client.emit('join_error', { message: 'Invalid document data' });
-        return;
-      }
+      const errorResponse = ErrorHandler.handleError(error, {
+        clientId: client.id,
+        userId: client.userId,
+        documentId: validatedData?.documentId,
+        operation: 'join_document',
+      });
       
-      const errorMessage = error instanceof Error ? error.message : 'Failed to join document';
-      this.logger.error('Failed to join document:', errorMessage);
-      client.emit('join_error', { message: errorMessage });
+      client.emit('join_error', {
+        message: errorResponse.message,
+        code: errorResponse.code,
+        shouldRetry: errorResponse.shouldRetry,
+      });
     }
   }
 
@@ -183,8 +232,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('document_update')
   async handleDocumentUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: any
+    @MessageBody() data: unknown
   ) {
+    // Rate limit document updates specifically
+    if (!this.documentUpdateRateLimit(client.id)) {
+      client.emit('update_error', {
+        message: 'Too many document updates. Please slow down.',
+        code: 'RATE_LIMIT_EXCEEDED',
+        shouldRetry: true,
+      });
+      return;
+    }
+    
     try {
       // Validate input data
       const validatedData = DocumentUpdateSchema.parse(data);
@@ -237,15 +296,18 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       });
 
     } catch (error) {
-      if (error instanceof ZodError) {
-        this.logger.error('Invalid document update data:', error.issues);
-        client.emit('update_error', { message: 'Invalid update data' });
-        return;
-      }
+      const errorResponse = ErrorHandler.handleError(error, {
+        clientId: client.id,
+        userId: client.userId,
+        documentId: validatedData?.documentId,
+        operation: 'document_update',
+      });
       
-      const errorMessage = error instanceof Error ? error.message : 'Failed to process document update';
-      this.logger.error('Failed to process document update:', errorMessage);
-      client.emit('update_error', { message: errorMessage });
+      client.emit('update_error', {
+        message: errorResponse.message,
+        code: errorResponse.code,
+        shouldRetry: errorResponse.shouldRetry,
+      });
     }
   }
 

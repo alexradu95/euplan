@@ -5,6 +5,7 @@ import { documents, documentAccess } from '../database/schema';
 import { and, eq } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../database/schema';
+import { PerformanceMonitor } from '../common/performance-monitor';
 
 export interface DocumentPersistenceService {
   loadDocument(documentId: string, userId: string): Promise<Y.Doc>;
@@ -24,9 +25,10 @@ export class DocumentsService implements DocumentPersistenceService {
    * Load a Y.js document from PostgreSQL
    */
   async loadDocument(documentId: string, userId: string): Promise<Y.Doc> {
-    const startTime = Date.now();
-    try {
-      this.logger.debug('Loading document', { documentId, userId });
+    return PerformanceMonitor.trackOperation(
+      'document_load',
+      async () => {
+        this.logger.debug('Loading document', { documentId, userId });
       
       // First, check if the document exists
       const document = await this.db
@@ -88,34 +90,29 @@ export class DocumentsService implements DocumentPersistenceService {
         }
       }
 
-      this.logger.debug('Document loaded successfully', { 
-        documentId, 
-        userId, 
-        loadTimeMs: Date.now() - startTime,
-        hasContent: !!document[0]?.encryptedContent 
-      });
-      
-      return ydoc;
-    } catch (error) {
-      this.logger.error('Error in loadDocument', error instanceof Error ? error : new Error(String(error)), { 
-        documentId, 
-        userId, 
-        loadTimeMs: Date.now() - startTime 
-      });
-      throw error;
-    }
+        this.logger.debug('Document loaded successfully', { 
+          documentId, 
+          userId, 
+          hasContent: !!document[0]?.encryptedContent 
+        });
+        
+        return ydoc;
+      },
+      { documentId, userId }
+    );
   }
 
   /**
    * Save a Y.js document to PostgreSQL
    */
   async saveDocument(documentId: string, userId: string, ydoc: Y.Doc): Promise<void> {
-    // Check if user has write access
-    if (!(await this.hasWriteAccess(documentId, userId))) {
-      throw new ForbiddenException('Insufficient permissions to save document');
-    }
-
-    try {
+    return PerformanceMonitor.trackOperation(
+      'document_save',
+      async () => {
+        // Check if user has write access
+        if (!(await this.hasWriteAccess(documentId, userId))) {
+          throw new ForbiddenException('Insufficient permissions to save document');
+        }
       // Encode the Y.js document as binary data
       const data = Y.encodeStateAsUpdate(ydoc);
       const base64Data = btoa(String.fromCharCode(...data));
@@ -129,18 +126,20 @@ export class DocumentsService implements DocumentPersistenceService {
         })
         .where(eq(documents.id, documentId));
 
-      this.logger.debug('Document saved successfully', { documentId, userId });
-    } catch (error) {
-      this.logger.error('Failed to save document', error instanceof Error ? error : new Error(String(error)), { documentId, userId });
-      throw error;
-    }
+        this.logger.debug('Document saved successfully', { documentId, userId });
+      },
+      { documentId, userId }
+    );
   }
 
   /**
    * Check if user has write access to a document
    */
   async hasWriteAccess(documentId: string, userId: string): Promise<boolean> {
-    const userAccess = await this.db
+    return PerformanceMonitor.trackOperation(
+      'access_check',
+      async () => {
+        const userAccess = await this.db
       .select({ accessLevel: documentAccess.accessLevel })
       .from(documentAccess)
       .where(
@@ -155,7 +154,10 @@ export class DocumentsService implements DocumentPersistenceService {
       return false;
     }
 
-    return userAccess[0].accessLevel === 'write' || userAccess[0].accessLevel === 'owner';
+        return userAccess[0].accessLevel === 'write' || userAccess[0].accessLevel === 'owner';
+      },
+      { documentId, userId }
+    );
   }
 
   /**

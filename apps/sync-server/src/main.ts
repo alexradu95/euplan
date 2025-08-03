@@ -3,13 +3,13 @@ import { AppModule } from './app.module';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { ServerOptions } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { config } from './config/environment';
+import { PerformanceMonitor } from './common/performance-monitor';
 
 class SocketIoAdapter extends IoAdapter {
   createIOServer(port: number, options?: ServerOptions): unknown {
     const cors = {
-      origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-domain.com'] 
-        : ['http://localhost:3000'],
+      origin: config.getAllowedOrigins(),
       credentials: true,
     };
     
@@ -25,11 +25,12 @@ class SocketIoAdapter extends IoAdapter {
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   
+  // Initialize performance monitoring
+  PerformanceMonitor.initialize();
+  
   const app = await NestFactory.create(AppModule, {
     cors: {
-      origin: process.env.NODE_ENV === 'production' 
-        ? ['https://your-domain.com'] 
-        : ['http://localhost:3000'],
+      origin: config.getAllowedOrigins(),
       credentials: true,
     }
   });
@@ -37,13 +38,22 @@ async function bootstrap() {
   // Configure WebSocket adapter with CORS
   app.useWebSocketAdapter(new SocketIoAdapter(app));
   
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+  const port = config.getNumber('PORT');
   await app.listen(port);
   
   logger.log('Sync server started successfully', {
     port,
-    environment: process.env.NODE_ENV || 'development',
-    websocketEnabled: true
+    environment: config.get('NODE_ENV'),
+    websocketEnabled: true,
+    allowedOrigins: config.getAllowedOrigins(),
+    performanceMonitoring: config.getBoolean('ENABLE_METRICS')
+  });
+  
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    logger.log('SIGTERM received, shutting down gracefully');
+    PerformanceMonitor.shutdown();
+    process.exit(0);
   });
 }
 bootstrap();

@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents, documentAccess } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import type { DocumentUpdateRequest, DocumentResponse, ApiErrorResponse } from '@/lib/types/api'
 
 // GET /api/documents/[id] - Get specific document
 export async function GET(
@@ -72,7 +73,8 @@ export async function PATCH(
     }
 
     const { id: documentId } = await params
-    const { encryptedContent, title } = await request.json()
+    const requestBody = await request.json() as DocumentUpdateRequest
+    const { encryptedContent, title } = requestBody
 
     // Check if user has write access to this document
     const userAccess = await db
@@ -101,7 +103,7 @@ export async function PATCH(
     }
 
     // Update the document
-    const updateData: any = {
+    const updateData: Partial<typeof documents.$inferInsert> = {
       updatedAt: new Date(),
     }
 

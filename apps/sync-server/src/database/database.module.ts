@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
+import { config } from '../config/environment';
 
 export const DATABASE_CONNECTION = 'DATABASE_CONNECTION';
 export const DATABASE_POOL = 'DATABASE_POOL';
@@ -14,12 +15,8 @@ export const DATABASE_POOL = 'DATABASE_POOL';
       provide: DATABASE_POOL,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        // Try multiple environment variable names to match the web app
-        const connectionString = 
-          configService.get<string>('DATABASE_URL') ||
-          configService.get<string>('POSTGRES_URL') ||
-          process.env.DATABASE_URL ||
-          process.env.POSTGRES_URL;
+        // Use validated configuration service
+        const connectionString = config.get('DATABASE_URL');
           
         const logger = new Logger('DatabaseModule');
         logger.debug('Environment check', {
@@ -40,9 +37,9 @@ export const DATABASE_POOL = 'DATABASE_POOL';
         // Create a connection pool with optimized configuration
         const pool = new Pool({
           connectionString: connectionString,
-          // Performance optimizations
-          max: 20, // Maximum number of clients in the pool
-          min: 5,  // Minimum number of clients in the pool
+          // Performance optimizations from config
+          max: config.getNumber('DB_POOL_MAX'),
+          min: config.getNumber('DB_POOL_MIN'),
           idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
           connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
           maxUses: 7500, // Close (and replace) a connection after it has been used 7500 times
