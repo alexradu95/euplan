@@ -2,7 +2,6 @@
 import React from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Collaboration from '@tiptap/extension-collaboration'
 
 import { Toolbar } from './Toolbar'
 import { SlashCommand } from '../editor/slash-command'
@@ -18,11 +17,6 @@ const TiptapEditor: React.FC = () => {
     extensions: [
       StarterKit,
       SlashCommand,
-      ...(doc ? [
-        Collaboration.configure({
-          document: doc,
-        }),
-      ] : [])
     ],
     editorProps: {
       attributes: {

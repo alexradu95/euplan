@@ -1,36 +1,147 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EuPlan - Personal Document Editor
+
+A clean, fast personal document editor built with Next.js, Y.js, and Tiptap.
+
+## Features
+
+- 📝 Rich text editing with Tiptap
+- 💾 Auto-save functionality  
+- ↩️ Excellent undo/redo with Y.js
+- 🔐 Secure authentication
+- 📱 Responsive design
+- ⚡ Fast and lightweight
+
+## Architecture
+
+**Simplified Stack:**
+- **Frontend:** Next.js 15 + React + TypeScript
+- **Editor:** Tiptap + Y.js (for undo/redo)
+- **Database:** PostgreSQL + Drizzle ORM
+- **Auth:** NextAuth.js
+- **Styling:** Tailwind CSS
+
+**Architecture Overview:**
+```
+Browser (Y.js Editor) → Next.js API Routes → PostgreSQL
+```
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database
+- pnpm (recommended)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+### Installation
+
+1. **Clone and install dependencies:**
+   ```bash
+   git clone <your-repo>
+   cd euplan/apps/web
+   pnpm install
+   ```
+
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Configure:
+   ```env
+   DATABASE_URL="postgresql://..."
+   NEXTAUTH_SECRET="your-secret"
+   NEXTAUTH_URL="http://localhost:3000"
+   ```
+
+3. **Set up database:**
+   ```bash
+   npx drizzle-kit push
+   ```
+
+4. **Start development server:**
+   ```bash
+   pnpm dev
+   ```
+
+## Development
+
+### Project Structure
+```
+apps/web/
+├── app/                 # Next.js App Router
+│   ├── api/            # API routes
+│   ├── editor/         # Editor pages
+│   └── auth/           # Authentication pages
+├── components/         # React components
+├── hooks/              # Custom React hooks
+├── lib/                # Utilities and database
+├── providers/          # React context providers
+└── types/              # TypeScript type definitions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Key Components
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **YjsProvider:** Manages Y.js documents and auto-save
+- **TiptapEditor:** Rich text editor component
+- **DocumentHeader:** Shows save status and document info
+- **useDocumentPersistence:** Auto-save hook
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### API Endpoints
 
-## Learn More
+- `GET /api/documents` - List user's documents
+- `POST /api/documents` - Create new document
+- `GET /api/documents/[id]` - Get document content
+- `POST /api/documents/[id]/autosave` - Auto-save document
 
-To learn more about Next.js, take a look at the following resources:
+## Testing
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Unit tests
+pnpm test
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# E2E tests  
+pnpm test:e2e
 
-## Deploy on Vercel
+# Type checking
+pnpm type-check
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Linting
+pnpm lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment
+
+The application is designed to deploy easily to any platform that supports Next.js:
+
+- **Vercel:** Automatic deployment from git
+- **Railway/Render:** PostgreSQL + Next.js hosting
+- **Self-hosted:** Docker deployment ready
+
+## Performance
+
+- **Fast loading:** No WebSocket overhead
+- **Efficient saves:** Debounced auto-save (2s delay)
+- **Optimized bundle:** Only essential dependencies
+- **Database indexes:** Optimized queries for document loading
+
+## Future Enhancements
+
+When needed, the architecture supports adding:
+- **Family sharing:** Document sharing with simple permissions
+- **Real-time collaboration:** Y.js already supports this
+- **Offline support:** Service worker + local storage
+- **Version history:** Document snapshots
+- **Mobile app:** React Native with shared logic
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/my-feature`
+3. Make changes following the existing patterns
+4. Run tests: `pnpm test && pnpm test:e2e`
+5. Commit and push: `git commit -m "Add my feature"`
+6. Create pull request
+
+## License
+
+MIT License - see LICENSE file for details.

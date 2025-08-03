@@ -56,6 +56,8 @@ export const documents = pgTable(
   },
   (documents) => ({
     userIdIdx: index("idx_documents_user_id").on(documents.userId),
+    userIdUpdatedAtIdx: index("idx_documents_user_id_updated_at").on(documents.userId, documents.updatedAt),
+    userIdCreatedAtIdx: index("idx_documents_user_id_created_at").on(documents.userId, documents.createdAt),
   })
 )
 
