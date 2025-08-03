@@ -13,7 +13,7 @@ export interface DocumentResponse {
   encryptedContent: string | null;
   createdAt: Date;
   updatedAt: Date;
-  accessLevel: 'read' | 'write' | 'owner';
+  // Removed accessLevel - all documents are owned by the user
 }
 
 export interface ApiErrorResponse {

@@ -7,7 +7,7 @@ type Document = {
   title: string
   createdAt: string
   updatedAt: string
-  accessLevel: 'read' | 'write' | 'owner'
+  // Removed accessLevel - all documents are editable by their owner
 }
 
 type UseDocumentTitleOptions = {
@@ -24,7 +24,8 @@ export function useDocumentTitle({
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [editedTitle, setEditedTitle] = useState('')
 
-  const canEditTitle = currentDocument && currentDocument.accessLevel !== 'read'
+  // All documents are editable by their owner (user can always edit their own documents)
+  const canEditTitle = currentDocument !== null
 
   const startEditing = () => {
     if (canEditTitle) {

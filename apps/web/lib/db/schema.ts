@@ -84,24 +84,5 @@ export const documents = pgTable(
   })
 )
 
-// Document access control - manages sharing and permissions
-export const documentAccess = pgTable(
-  "document_access",
-  {
-    documentId: uuid("document_id")
-      .notNull()
-      .references(() => documents.id, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    accessLevel: text("access_level", { 
-      enum: ["read", "write", "owner"] 
-    }).notNull().default("read"),
-    grantedAt: timestamp("granted_at", { mode: "date" }).defaultNow(),
-  },
-  (documentAccess) => ({
-    compoundKey: primaryKey({ 
-      columns: [documentAccess.documentId, documentAccess.userId] 
-    }),
-  })
-)
+// Removed documentAccess table - no longer needed for single-user documents
+// All documents are owned by their creator (userId), no sharing/collaboration needed
