@@ -23,7 +23,8 @@ export function verifyToken(token: string): JWTPayload | null {
     }) as JWTPayload
     return decoded
   } catch (error) {
-    console.error('JWT verification failed:', error)
+    // JWT verification failures are expected for invalid tokens
+    // Don't log as error in production to avoid noise
     return null
   }
 }

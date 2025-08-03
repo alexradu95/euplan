@@ -168,7 +168,7 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
     } catch (error) {
       if (error instanceof ZodError) {
-        this.logger.error('Invalid join document data:', error.errors);
+        this.logger.error('Invalid join document data:', error.issues);
         client.emit('join_error', { message: 'Invalid document data' });
         return;
       }
@@ -240,7 +240,7 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
     } catch (error) {
       if (error instanceof ZodError) {
-        this.logger.error('Invalid document update data:', error.errors);
+        this.logger.error('Invalid document update data:', error.issues);
         client.emit('update_error', { message: 'Invalid update data' });
         return;
       }

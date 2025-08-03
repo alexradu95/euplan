@@ -40,7 +40,8 @@
     "sql.js": "^1.13.0",
     "tippy.js": "^6.3.7",
     "y-websocket": "^2.0.4",
-    "yjs": "^13.6.27"
+    "yjs": "^13.6.27",
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

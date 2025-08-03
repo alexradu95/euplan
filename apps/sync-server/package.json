@@ -37,7 +37,8 @@
     "socket.io": "^4.8.1",
     "y-protocols": "^1.0.6",
     "y-websocket": "^2.0.4",
-    "yjs": "^13.6.18"
+    "yjs": "^13.6.18",
+    "zod": "^4.0.14"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

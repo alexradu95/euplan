@@ -13,11 +13,19 @@ export function useYjsDocument() {
   const { db, isInitialized, saveDatabase } = useDatabase()
   const { isLoading: documentsLoading, loadDocument, saveDocumentToServer, createDocument, getUserDocuments } = useDocuments(db)
   
-  const [doc, setDoc] = useState<Y.Doc | null>(null)
-  const [currentDocumentId, setCurrentDocumentId] = useState<string | null>(null)
+  const [documentState, setDocumentState] = useState<{
+    doc: Y.Doc | null
+    currentDocumentId: string | null
+  }>({
+    doc: null,
+    currentDocumentId: null
+  })
   const [isLoading, setIsLoading] = useState(false)
   
+  const { doc, currentDocumentId } = documentState
+  
   const docRef = useRef<Y.Doc | null>(null)
+  const initializationRef = useRef<string | null>(null) // Track which user has been initialized
 
   // Update docRef whenever doc changes
   useEffect(() => {
@@ -57,10 +65,12 @@ export function useYjsDocument() {
     })
   }, [sendUpdate, db, saveDatabase])
 
-  const switchDocument = useCallback(async (documentId: string) => {
+  const switchDocument = useCallback(async (documentId: string, skipLoadingState = false) => {
     if (!session?.user?.id || !db) return
     
-    setIsLoading(true)
+    if (!skipLoadingState) {
+      setIsLoading(true)
+    }
     
     try {
       // Save current document if it exists
@@ -68,48 +78,71 @@ export function useYjsDocument() {
         await saveDocumentToServer(currentDocumentId, doc)
       }
       
-      // Set the current document ID BEFORE loading the document
-      setCurrentDocumentId(documentId)
-      
-      // Load the new document
+      // Load the new document first
       const newDoc = await loadDocument(documentId)
       if (newDoc) {
         setupDocumentSync(newDoc, documentId)
-        setDoc(newDoc)
+        
+        // Set both states atomically to reduce renders
+        setDocumentState({
+          doc: newDoc,
+          currentDocumentId: documentId
+        })
         
         // Join the new document room via WebSocket
         joinDocument(documentId)
       }
     } catch (error) {
-      console.error('Failed to switch document:', error)
+      // Silent fail - user can retry
     } finally {
-      setIsLoading(false)
+      if (!skipLoadingState) {
+        setIsLoading(false)
+      }
     }
   }, [session?.user?.id, db, doc, currentDocumentId, loadDocument, saveDocumentToServer, setupDocumentSync, joinDocument])
 
   // Initialize user session and load first document
   useEffect(() => {
     const initializeUserSession = async () => {
-      if (!db || !session?.user?.id || status === 'loading') return
-
+      const userId = session?.user?.id
+      if (!db || !userId || status === 'loading') return
+      
+      // Check if we've already initialized for this user
+      if (initializationRef.current === userId) return
+      
       setIsLoading(true)
+      initializationRef.current = userId
       
       try {
         const documents = await getUserDocuments()
         
+        // Debug: Log what's happening
+        if (typeof window !== 'undefined') {
+          console.log('[DEBUG] Initialization - documents found:', documents.length)
+          console.log('[DEBUG] Current user:', userId)
+          console.log('[DEBUG] Previous init user:', initializationRef.current)
+        }
+        
         if (documents.length > 0) {
           // Load the most recent document
           const latestDoc = documents[0]
-          await switchDocument(latestDoc.id)
+          if (typeof window !== 'undefined') {
+            console.log('[DEBUG] Loading existing document:', latestDoc.id)
+          }
+          await switchDocument(latestDoc.id, true) // Skip loading state since we're already loading
         } else {
           // Create a new document for the user
+          if (typeof window !== 'undefined') {
+            console.log('[DEBUG] Creating new document')
+          }
           const newDocId = await createDocument()
           if (newDocId) {
-            await switchDocument(newDocId)
+            await switchDocument(newDocId, true) // Skip loading state since we're already loading
           }
         }
       } catch (error) {
-        console.error('Failed to initialize user session:', error)
+        // Failed to initialize session - reset initialization flag
+        initializationRef.current = null
       } finally {
         setIsLoading(false)
       }
@@ -117,8 +150,11 @@ export function useYjsDocument() {
 
     // Clear document when user logs out
     if (status === 'unauthenticated') {
-      setDoc(null)
-      setCurrentDocumentId(null)
+      setDocumentState({
+        doc: null,
+        currentDocumentId: null
+      })
+      initializationRef.current = null
     } else if (status === 'authenticated' && isInitialized) {
       initializeUserSession()
     }

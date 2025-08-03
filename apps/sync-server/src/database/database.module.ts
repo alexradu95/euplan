@@ -1,4 +1,4 @@
-import { Module, OnModuleDestroy, Inject } from '@nestjs/common';
+import { Module, OnModuleDestroy, Inject, Logger } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -21,17 +21,21 @@ export const DATABASE_POOL = 'DATABASE_POOL';
           process.env.DATABASE_URL ||
           process.env.POSTGRES_URL;
           
-        console.log('Environment check:');
-        console.log('- DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set');
-        console.log('- POSTGRES_URL:', process.env.POSTGRES_URL ? 'Set' : 'Not set');
-        console.log('- ConfigService DATABASE_URL:', configService.get<string>('DATABASE_URL') ? 'Set' : 'Not set');
-        console.log('- ConfigService POSTGRES_URL:', configService.get<string>('POSTGRES_URL') ? 'Set' : 'Not set');
+        const logger = new Logger('DatabaseModule');
+        logger.debug('Environment check', {
+          DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not set',
+          POSTGRES_URL: process.env.POSTGRES_URL ? 'Set' : 'Not set',
+          configDatabaseUrl: configService.get<string>('DATABASE_URL') ? 'Set' : 'Not set',
+          configPostgresUrl: configService.get<string>('POSTGRES_URL') ? 'Set' : 'Not set'
+        });
           
         if (!connectionString) {
           throw new Error('Database connection string not found. Please set DATABASE_URL or POSTGRES_URL environment variable.');
         }
         
-        console.log('Using database connection string:', connectionString.substring(0, 20) + '...');
+        logger.log('Database connection established', {
+          connectionPrefix: connectionString.substring(0, 20) + '...'
+        });
         
         // Create a connection pool for better performance (like the web app)
         const pool = new Pool({

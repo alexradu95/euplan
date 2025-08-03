@@ -31,7 +31,6 @@ export async function GET() {
 
     return NextResponse.json(userDocuments)
   } catch (error) {
-    console.error('Error fetching documents:', error)
     return NextResponse.json(
       { error: 'Failed to fetch documents' },
       { status: 500 }
@@ -75,12 +74,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
+        { error: 'Invalid input', details: error.issues },
         { status: 400 }
       )
     }
     
-    console.error('Error creating document:', error)
     return NextResponse.json(
       { error: 'Failed to create document' },
       { status: 500 }

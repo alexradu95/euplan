@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable prettier/prettier */
-import { Injectable, Inject, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import * as Y from 'yjs';
 import { DATABASE_CONNECTION } from '../database/database.module';
 import { documents, documentAccess } from '../database/schema';
@@ -17,6 +17,8 @@ export interface DocumentPersistenceService {
 
 @Injectable()
 export class DocumentsService implements DocumentPersistenceService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     @Inject(DATABASE_CONNECTION) private readonly db: any
   ) {}
@@ -26,7 +28,7 @@ export class DocumentsService implements DocumentPersistenceService {
    */
   async loadDocument(documentId: string, userId: string): Promise<Y.Doc> {
     try {
-      console.log(`Loading document ${documentId} for user ${userId}`);
+      this.logger.debug('Loading document', { documentId, userId });
       
       // First, check if the document exists
       const document = await this.db
@@ -38,7 +40,11 @@ export class DocumentsService implements DocumentPersistenceService {
         .where(eq(documents.id, documentId))
         .limit(1);
 
-      console.log(`Document query result:`, document);
+      this.logger.debug('Document query completed', { 
+        documentId, 
+        found: document.length > 0,
+        hasContent: !!document[0]?.encryptedContent 
+      });
 
       if (document.length === 0) {
         throw new NotFoundException('Document not found');
@@ -58,7 +64,12 @@ export class DocumentsService implements DocumentPersistenceService {
         )
         .limit(1);
 
-      console.log(`Access check result:`, accessCheck);
+      this.logger.debug('Access check completed', { 
+        documentId, 
+        userId, 
+        hasAccess: accessCheck.length > 0,
+        accessLevel: accessCheck[0]?.accessLevel 
+      });
 
       if (accessCheck.length === 0) {
         throw new NotFoundException('Access denied');
@@ -75,13 +86,13 @@ export class DocumentsService implements DocumentPersistenceService {
           );
           Y.applyUpdate(ydoc, binaryData);
         } catch (error) {
-          console.error('Failed to load document content:', error);
+          this.logger.error('Failed to load document content', error instanceof Error ? error : new Error(String(error)), { documentId, userId });
         }
       }
 
       return ydoc;
     } catch (error) {
-      console.error('Error in loadDocument:', error);
+      this.logger.error('Error in loadDocument', error instanceof Error ? error : new Error(String(error)), { documentId, userId });
       throw error;
     }
   }
@@ -109,9 +120,9 @@ export class DocumentsService implements DocumentPersistenceService {
         })
         .where(eq(documents.id, documentId));
 
-      console.log(`Document ${documentId} saved for user ${userId}`);
+      this.logger.debug('Document saved successfully', { documentId, userId });
     } catch (error) {
-      console.error('Failed to save document:', error);
+      this.logger.error('Failed to save document', error instanceof Error ? error : new Error(String(error)), { documentId, userId });
       throw error;
     }
   }

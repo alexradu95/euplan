@@ -1,5 +1,4 @@
 'use client'
-
 import React from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -17,16 +16,12 @@ const TiptapEditor = () => {
 
   const editor = useEditor({
     extensions: [
-      // StarterKit without History extension (conflicts with Collaboration)
-      StarterKit.configure({
-        history: false,
-      }),
-      // Conditionally add collaboration features when doc is ready
+      StarterKit,
+      SlashCommand,
       ...(doc ? [
         Collaboration.configure({
           document: doc,
         }),
-        SlashCommand,
       ] : [])
     ],
     editorProps: {
@@ -35,7 +30,7 @@ const TiptapEditor = () => {
       },
     },
     immediatelyRender: false,
-  }, [doc]);
+  }, [doc, currentDocumentId]) // Only recreate when doc or document ID changes
 
   // Show loading state
   if (isLoading || !currentDocumentId) {

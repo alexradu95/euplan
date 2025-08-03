@@ -46,12 +46,11 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: 'Invalid input', details: error.errors },
+        { error: 'Invalid input', details: error.issues },
         { status: 400 }
       )
     }
     
-    console.error('Signup error:', error)
     return NextResponse.json(
       { error: 'Failed to create user' },
       { status: 500 }

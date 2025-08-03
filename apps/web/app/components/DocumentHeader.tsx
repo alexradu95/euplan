@@ -39,7 +39,7 @@ export default function DocumentHeader() {
           }
         }
       } catch (error) {
-        console.error('Failed to fetch documents:', error)
+        // Silent fail - UI will show empty state
       }
     }
 
@@ -61,7 +61,7 @@ export default function DocumentHeader() {
         }
       }
     } catch (error) {
-      console.error('Failed to create document:', error)
+      // Silent fail - user can retry
     } finally {
       setIsCreating(false)
     }
@@ -72,7 +72,7 @@ export default function DocumentHeader() {
       await switchDocument(documentId)
       setShowDropdown(false)
     } catch (error) {
-      console.error('Failed to switch document:', error)
+      // Silent fail - user can retry
     }
   }
 
@@ -80,7 +80,7 @@ export default function DocumentHeader() {
     try {
       await signOut({ callbackUrl: '/login' })
     } catch (error) {
-      console.error('Failed to sign out:', error)
+      // Silent fail - likely already signed out
     }
   }
 

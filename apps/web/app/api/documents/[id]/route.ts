@@ -52,7 +52,6 @@ export async function GET(
       accessLevel: userAccess[0].accessLevel,
     })
   } catch (error) {
-    console.error('Error fetching document:', error)
     return NextResponse.json(
       { error: 'Failed to fetch document' },
       { status: 500 }
@@ -121,7 +120,6 @@ export async function PATCH(
 
     return NextResponse.json({ message: 'Document updated successfully' })
   } catch (error) {
-    console.error('Error updating document:', error)
     return NextResponse.json(
       { error: 'Failed to update document' },
       { status: 500 }
@@ -174,7 +172,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Document deleted successfully' })
   } catch (error) {
-    console.error('Error deleting document:', error)
     return NextResponse.json(
       { error: 'Failed to delete document' },
       { status: 500 }
