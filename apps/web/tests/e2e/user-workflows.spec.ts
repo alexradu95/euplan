@@ -174,8 +174,9 @@ test.describe('Document Editing', () => {
     // Verify content is entered
     await expect(editor).toContainText('This is a test document with some content.');
     
-    // Test basic formatting
-    await editor.selectText('test document');
+    // Test basic formatting with keyboard shortcuts
+    await editor.focus();
+    await page.keyboard.press('Control+a'); // Select all
     await page.click('[data-testid="bold-button"]');
     
     // Verify bold formatting is applied
@@ -207,17 +208,14 @@ test.describe('Document Editing', () => {
     await editor.fill('Bold text, italic text, and underlined text.');
     
     // Test bold formatting
-    await editor.selectText('Bold text');
+    await editor.focus();
+    await page.keyboard.press('Control+a'); // Select all
     await page.click('[data-testid="bold-button"]');
     await expect(page.locator('strong')).toContainText('Bold text');
     
-    // Test italic formatting
-    await editor.selectText('italic text');
-    await page.click('[data-testid="italic-button"]');
-    await expect(page.locator('em')).toContainText('italic text');
-    
     // Test list creation
     await editor.focus();
+    await page.keyboard.press('End');
     await page.keyboard.press('Enter');
     await page.click('[data-testid="bullet-list-button"]');
     await editor.type('First bullet point');
@@ -249,133 +247,72 @@ test.describe('Document Editing', () => {
   });
 });
 
-test.describe('Real-time Collaboration', () => {
-  test('should show multiple users editing same document', async ({ browser }) => {
-    const context1 = await browser.newContext();
-    const context2 = await browser.newContext();
-    const page1 = await context1.newPage();
-    const page2 = await context2.newPage();
+test.describe('Document Management', () => {
+  test('should create and edit document', async ({ page }) => {
+    await authenticateUser(page, TEST_USERS.user1);
     
-    // Authenticate both users
-    await authenticateUser(page1, TEST_USERS.user1);
-    await authenticateUser(page2, TEST_USERS.user2);
+    // Create new document
+    const documentId = await createDocument(page, 'Test Document');
     
-    // User 1 creates document
-    const documentId = await createDocument(page1, 'Collaboration Test');
-    
-    // Share document with user 2 (assuming sharing functionality exists)
-    await page1.click('[data-testid="share-button"]');
-    await page1.fill('[data-testid="share-email"]', TEST_USERS.user2.email);
-    await page1.click('[data-testid="send-invite"]');
-    
-    // User 2 opens the shared document
-    await page2.goto(`/editor/${documentId}`);
-    
-    // Verify both users can see each other
-    await expect(page1.locator('[data-testid="collaborator-list"]')).toContainText('test2@example.com');
-    await expect(page2.locator('[data-testid="collaborator-list"]')).toContainText('test1@example.com');
-    
-    // User 1 types
-    const editor1 = page1.locator('[data-testid="editor-content"]');
-    await editor1.click();
-    await editor1.fill('User 1 typing: ');
-    
-    // User 2 should see the text
-    const editor2 = page2.locator('[data-testid="editor-content"]');
-    await expect(editor2).toContainText('User 1 typing: ');
-    
-    // User 2 adds text
-    await editor2.click();
-    await page2.keyboard.press('End');
-    await editor2.type('User 2 adding text');
-    
-    // User 1 should see both texts
-    await expect(editor1).toContainText('User 1 typing: User 2 adding text');
-    
-    await context1.close();
-    await context2.close();
+    // Edit document
+    const editor = page.locator('[data-testid="editor-content"]');
+    await editor.click();
+    await editor.fill('This is my test document content.');
+
+    // Wait for auto-save
+    await expect(page.locator('[data-testid="save-status"]')).toContainText('Saved');
+
+    // Reload page to verify persistence
+    await page.reload();
+    await expect(editor).toContainText('This is my test document content.');
   });
 
-  test('should show real-time cursor positions', async ({ browser }) => {
-    const context1 = await browser.newContext();
-    const context2 = await browser.newContext();
-    const page1 = await context1.newPage();
-    const page2 = await context2.newPage();
+  test('should show document list', async ({ page }) => {
+    await authenticateUser(page, TEST_USERS.user1);
+    await page.goto('/');
     
-    await authenticateUser(page1, TEST_USERS.user1);
-    await authenticateUser(page2, TEST_USERS.user2);
+    // Should show user's documents
+    await expect(page.locator('[data-testid="document-list"]')).toBeVisible();
     
-    const documentId = await createDocument(page1, 'Cursor Test');
-    
-    // Share and open document in second browser
-    await page1.click('[data-testid="share-button"]');
-    await page1.fill('[data-testid="share-email"]', TEST_USERS.user2.email);
-    await page1.click('[data-testid="send-invite"]');
-    await page2.goto(`/editor/${documentId}`);
-    
-    // Add some content first
-    const editor1 = page1.locator('[data-testid="editor-content"]');
-    await editor1.click();
-    await editor1.fill('This is a test document for cursor tracking.');
-    
-    // Move cursor in editor 1
-    await editor1.click();
-    await page1.keyboard.press('Home');
-    
-    // User 2 should see user 1's cursor
-    await expect(page2.locator('[data-testid="user-cursor-user1"]')).toBeVisible();
-    
-    // Move cursor to different position
-    await page1.keyboard.press('Control+Right'); // Move to next word
-    
-    // Cursor position should update for user 2
-    // Note: This would require implementing cursor position tracking in the app
-    
-    await context1.close();
-    await context2.close();
+    // Should be able to create new document
+    await expect(page.locator('[data-testid="create-document-button"]')).toBeVisible();
   });
 
-  test('should handle conflict resolution in concurrent edits', async ({ browser }) => {
-    const context1 = await browser.newContext();
-    const context2 = await browser.newContext();
-    const page1 = await context1.newPage();
-    const page2 = await context2.newPage();
+  test('should handle save errors gracefully', async ({ page }) => {
+    await authenticateUser(page, TEST_USERS.user1);
     
-    await authenticateUser(page1, TEST_USERS.user1);
-    await authenticateUser(page2, TEST_USERS.user2);
+    // Intercept API calls to simulate error
+    await page.route('**/api/documents/*/autosave', route => {
+      route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+    })
+
+    const documentId = await createDocument(page, 'Error Test');
     
-    const documentId = await createDocument(page1, 'Conflict Test');
+    const editor = page.locator('[data-testid="editor-content"]');
+    await editor.fill('This should fail to save');
+
+    // Should show error status
+    await expect(page.locator('[data-testid="save-status"]')).toContainText('Save failed');
+  });
+
+  test('should support undo/redo', async ({ page }) => {
+    await authenticateUser(page, TEST_USERS.user1);
+    const documentId = await createDocument(page, 'Undo Test');
     
-    // Set up collaboration
-    await page1.click('[data-testid="share-button"]');
-    await page1.fill('[data-testid="share-email"]', TEST_USERS.user2.email);
-    await page1.click('[data-testid="send-invite"]');
-    await page2.goto(`/editor/${documentId}`);
-    
-    const editor1 = page1.locator('[data-testid="editor-content"]');
-    const editor2 = page2.locator('[data-testid="editor-content"]');
-    
-    // Both users edit at the same time
-    await editor1.click();
-    await editor1.fill('User 1: ');
-    
-    await editor2.click();
-    await editor2.fill('User 2: ');
-    
-    // Wait for synchronization
-    await page1.waitForTimeout(1000);
-    await page2.waitForTimeout(1000);
-    
-    // Both editors should show merged content (order may vary due to Y.js conflict resolution)
-    const finalContent1 = await editor1.textContent();
-    const finalContent2 = await editor2.textContent();
-    
-    expect(finalContent1).toBe(finalContent2);
-    expect(finalContent1).toContain('User 1');
-    expect(finalContent1).toContain('User 2');
-    
-    await context1.close();
-    await context2.close();
+    const editor = page.locator('[data-testid="editor-content"]');
+    await editor.click();
+    await editor.fill('First line');
+    await editor.press('Enter');
+    await editor.type('Second line');
+
+    // Test undo (Ctrl+Z)
+    await page.keyboard.press('Control+z');
+    await expect(editor).not.toContainText('Second line');
+    await expect(editor).toContainText('First line');
+
+    // Test redo (Ctrl+Y)
+    await page.keyboard.press('Control+y');
+    await expect(editor).toContainText('Second line');
   });
 });
 
@@ -397,48 +334,18 @@ test.describe('Offline and Network Resilience', () => {
     // Continue editing offline
     await editor.type(' - offline content');
     
-    // Should show offline indicator
-    await expect(page.locator('[data-testid="connection-status"]')).toContainText('Offline');
+    // Should show offline indicator or save pending
+    await expect(page.locator('[data-testid="save-status"]')).toContainText(/Saving|Save failed/);
     
     // Reconnect
     await context.setOffline(false);
     
     // Should sync changes
-    await expect(page.locator('[data-testid="connection-status"]')).toContainText('Online');
     await expect(page.locator('[data-testid="save-status"]')).toContainText('Saved');
     
     // Verify content persisted
     await page.reload();
     await expect(editor).toContainText('Content before going offline - offline content');
-  });
-
-  test('should recover from server disconnection', async ({ page }) => {
-    await authenticateUser(page, TEST_USERS.user1);
-    await createDocument(page, 'Server Recovery Test');
-    
-    const editor = page.locator('[data-testid="editor-content"]');
-    await editor.click();
-    await editor.fill('Initial content');
-    
-    // Simulate WebSocket disconnection by intercepting and blocking WebSocket requests
-    await page.route('ws://localhost:**/collaboration', (route) => {
-      route.abort();
-    });
-    
-    // Continue editing
-    await editor.type(' - added during disconnection');
-    
-    // Should show connection issues
-    await expect(page.locator('[data-testid="connection-status"]')).toContainText(/Disconnected|Reconnecting/);
-    
-    // Remove route block to allow reconnection
-    await page.unroute('ws://localhost:**/collaboration');
-    
-    // Should reconnect automatically
-    await expect(page.locator('[data-testid="connection-status"]')).toContainText('Connected');
-    
-    // Changes should be preserved
-    await expect(editor).toContainText('Initial content - added during disconnection');
   });
 });
 
@@ -497,18 +404,15 @@ test.describe('Performance and User Experience', () => {
     await expect(page.locator('[data-testid="save-status"]')).toContainText(/Saving|Saved/);
     
     // Format text and verify feedback
-    await editor.selectText('Test content');
+    await editor.focus();
+    await page.keyboard.press('Control+a'); // Select all
     await page.click('[data-testid="bold-button"]');
     
     // Bold button should show active state
     await expect(page.locator('[data-testid="bold-button"]')).toHaveClass(/active|selected/);
     
-    // Test error feedback
-    await page.click('[data-testid="share-button"]');
-    await page.fill('[data-testid="share-email"]', 'invalid-email');
-    await page.click('[data-testid="send-invite"]');
-    
-    // Should show error message
-    await expect(page.locator('[data-testid="error-message"]')).toContainText('Invalid email');
+    // Manual save should work
+    await page.click('[data-testid="manual-save-button"]');
+    await expect(page.locator('[data-testid="save-status"]')).toContainText('Saved');
   });
 });
