@@ -1,13 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable prettier/prettier */
 import { Injectable, Inject, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import * as Y from 'yjs';
 import { DATABASE_CONNECTION } from '../database/database.module';
 import { documents, documentAccess } from '../database/schema';
 import { and, eq } from 'drizzle-orm';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import * as schema from '../database/schema';
 
 export interface DocumentPersistenceService {
   loadDocument(documentId: string, userId: string): Promise<Y.Doc>;
@@ -20,13 +17,14 @@ export class DocumentsService implements DocumentPersistenceService {
   private readonly logger = new Logger(DocumentsService.name);
 
   constructor(
-    @Inject(DATABASE_CONNECTION) private readonly db: any
+    @Inject(DATABASE_CONNECTION) private readonly db: NodePgDatabase<typeof schema>
   ) {}
 
   /**
    * Load a Y.js document from PostgreSQL
    */
   async loadDocument(documentId: string, userId: string): Promise<Y.Doc> {
+    const startTime = Date.now();
     try {
       this.logger.debug('Loading document', { documentId, userId });
       
@@ -90,9 +88,20 @@ export class DocumentsService implements DocumentPersistenceService {
         }
       }
 
+      this.logger.debug('Document loaded successfully', { 
+        documentId, 
+        userId, 
+        loadTimeMs: Date.now() - startTime,
+        hasContent: !!document[0]?.encryptedContent 
+      });
+      
       return ydoc;
     } catch (error) {
-      this.logger.error('Error in loadDocument', error instanceof Error ? error : new Error(String(error)), { documentId, userId });
+      this.logger.error('Error in loadDocument', error instanceof Error ? error : new Error(String(error)), { 
+        documentId, 
+        userId, 
+        loadTimeMs: Date.now() - startTime 
+      });
       throw error;
     }
   }

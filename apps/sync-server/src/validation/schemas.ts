@@ -10,8 +10,24 @@ export const DocumentUpdateSchema = z.object({
   documentId: z.string().uuid('Invalid document ID format'),
 });
 
+// Define proper awareness state structure based on Y.js awareness protocol
+export const AwarenessStateSchema = z.object({
+  user: z.object({
+    name: z.string().optional(),
+    color: z.string().optional(),
+    cursor: z.object({
+      anchor: z.number(),
+      head: z.number()
+    }).optional()
+  }).optional(),
+  selection: z.object({
+    anchor: z.number(),
+    head: z.number()
+  }).optional()
+}).catchall(z.unknown()); // Allow additional fields for extensibility
+
 export const AwarenessUpdateSchema = z.object({
-  awareness: z.any(), // Y.js awareness can be complex, allow any for now
+  awareness: AwarenessStateSchema,
   documentId: z.string().uuid('Invalid document ID format'),
 });
 

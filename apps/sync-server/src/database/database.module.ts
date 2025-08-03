@@ -37,9 +37,18 @@ export const DATABASE_POOL = 'DATABASE_POOL';
           connectionPrefix: connectionString.substring(0, 20) + '...'
         });
         
-        // Create a connection pool for better performance (like the web app)
+        // Create a connection pool with optimized configuration
         const pool = new Pool({
           connectionString: connectionString,
+          // Performance optimizations
+          max: 20, // Maximum number of clients in the pool
+          min: 5,  // Minimum number of clients in the pool
+          idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+          connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+          maxUses: 7500, // Close (and replace) a connection after it has been used 7500 times
+          // Connection validation
+          keepAlive: true,
+          keepAliveInitialDelayMillis: 0,
         });
         
         return pool;

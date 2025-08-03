@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 
@@ -11,7 +11,7 @@ import { useYjs } from '../providers/YjsProvider'
 import LoadingSpinner from './LoadingSpinner'
 
 // The main editor component
-const TiptapEditor = () => {
+const TiptapEditor: React.FC = () => {
   const { doc, isLoading, currentDocumentId } = useYjs(); // Get the Y.js document from the provider
 
   const editor = useEditor({

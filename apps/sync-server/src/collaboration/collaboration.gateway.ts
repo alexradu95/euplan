@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable prettier/prettier */
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -257,10 +255,12 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('awareness_update')
   async handleAwarenessUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() data: { awareness: any; documentId: string }
+    @MessageBody() data: unknown
   ) {
     try {
-      const { awareness, documentId } = data;
+      // Validate input data
+      const validatedData = AwarenessUpdateSchema.parse(data);
+      const { awareness, documentId } = validatedData;
       
       if (client.documentId !== documentId) {
         return;
