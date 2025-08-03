@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext } from 'react'
+import React, { createContext, useContext, memo, useCallback } from 'react'
 import * as Y from 'yjs'
 import { useYjsDocument } from '../hooks/useYjsDocument'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -30,18 +30,19 @@ const YjsContext = createContext<YjsContextType>({
 // Create a custom hook to make it easy to access the context in other components
 export const useYjs = () => useContext(YjsContext)
 
-// Create the Provider component itself
-export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
+// Create the Provider component itself - memoized to prevent unnecessary re-renders
+export const YjsProvider = memo<{ children: React.ReactNode }>(({ children }) => {
   const yjsDocument = useYjsDocument()
 
-  const handleProviderError = (error: Error, errorInfo: React.ErrorInfo) => {
+  // Memoize error handler to prevent function recreation
+  const handleProviderError = useCallback((error: Error, errorInfo: React.ErrorInfo) => {
     console.error('YjsProvider error:', {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
       timestamp: new Date().toISOString(),
     })
-  }
+  }, [])
 
   return (
     <ErrorBoundary onError={handleProviderError}>
@@ -50,4 +51,6 @@ export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
       </YjsContext.Provider>
     </ErrorBoundary>
   )
-}
+})
+
+YjsProvider.displayName = 'YjsProvider'

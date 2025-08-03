@@ -7,7 +7,7 @@ import {
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, OnModuleDestroy } from '@nestjs/common';
 import { LoggerService } from '../common/logger.service';
 import { Server, Socket } from 'socket.io';
 import * as Y from 'yjs';
@@ -42,13 +42,15 @@ interface DocumentRoom {
     credentials: true,
   },
 })
-export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(CollaborationGateway.name);
   private readonly documents = new Map<string, DocumentRoom>();
   private readonly saveInterval = config.getNumber('WS_SAVE_INTERVAL');
+  private readonly connectedClients = new Set<AuthenticatedSocket>();
+  private saveIntervalTimer?: NodeJS.Timeout;
   
   // Rate limiters
   private readonly connectionRateLimit = RateLimiter.create('connection', {
@@ -73,8 +75,41 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
     private readonly loggerService: LoggerService
   ) {
     this.logger.log('🔌 CollaborationGateway initialized');
-    // Periodic save to database
-    setInterval(() => this.saveAllDocuments(), this.saveInterval);
+    // Periodic save to database with proper cleanup
+    this.saveIntervalTimer = setInterval(() => this.saveAllDocuments(), this.saveInterval);
+  }
+
+  /**
+   * Cleanup resources when the module is destroyed
+   */
+  onModuleDestroy() {
+    this.logger.log('🧹 Cleaning up CollaborationGateway resources');
+    
+    // Clear the save interval timer
+    if (this.saveIntervalTimer) {
+      clearInterval(this.saveIntervalTimer);
+      this.saveIntervalTimer = undefined;
+    }
+    
+    // Disconnect all clients gracefully
+    this.connectedClients.forEach(client => {
+      try {
+        client.disconnect(true);
+      } catch (error) {
+        this.logger.warn(`Failed to disconnect client ${client.id}:`, error);
+      }
+    });
+    this.connectedClients.clear();
+    
+    // Save all documents before shutdown
+    this.saveAllDocuments().catch(error => {
+      this.logger.error('Failed to save documents during shutdown:', error);
+    });
+    
+    // Clear document rooms
+    this.documents.clear();
+    
+    this.logger.log('✅ CollaborationGateway cleanup completed');
   }
 
   /**
@@ -114,9 +149,14 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       }
 
       client.userId = payload.userId;
+      
+      // Track connected client for cleanup
+      this.connectedClients.add(client);
+      
       this.loggerService.authLog('Client authenticated successfully', payload.userId, {
         clientId: client.id,
-        email: payload.email
+        email: payload.email,
+        totalConnections: this.connectedClients.size
       });
     } catch (error) {
       const errorResponse = ErrorHandler.handleError(error, {
@@ -137,9 +177,14 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
    * Handle client disconnections
    */
   async handleDisconnect(client: AuthenticatedSocket) {
+    // Remove from connected clients tracking
+    this.connectedClients.delete(client);
+    
     if (client.documentId && client.userId) {
       await this.leaveDocument(client, client.documentId);
-      this.logger.log(`Client ${client.id} (user: ${client.userId}) disconnected`);
+      this.logger.log(`Client ${client.id} (user: ${client.userId}) disconnected. Remaining connections: ${this.connectedClients.size}`);
+    } else {
+      this.logger.log(`Unauthenticated client ${client.id} disconnected. Remaining connections: ${this.connectedClients.size}`);
     }
   }
 
@@ -361,46 +406,67 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   }
 
   /**
-   * Leave a document room
+   * Leave a document room with comprehensive cleanup
    */
   private async leaveDocument(client: AuthenticatedSocket, documentId: string) {
     const room = this.documents.get(documentId);
     if (room) {
       room.clients.delete(client);
       
+      this.logger.debug(`Client ${client.id} left document ${documentId}. Room now has ${room.clients.size} clients`);
+      
       // Clean up empty rooms
       if (room.clients.size === 0) {
+        this.logger.log(`📄 Document room ${documentId} is empty, saving and cleaning up`);
+        
         // Save before cleanup
         try {
-          await this.documentsService.saveDocument(documentId, client.userId!, room.ydoc);
+          if (client.userId) {
+            await this.documentsService.saveDocument(documentId, client.userId, room.ydoc);
+            this.logger.log(`💾 Saved document ${documentId} during room cleanup`);
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to save document';
-          this.logger.error(`Failed to save document ${documentId}:`, errorMessage);
+          this.logger.error(`❌ Failed to save document ${documentId} during cleanup:`, errorMessage);
         }
         
+        // Clear Y.js document to free memory
+        room.ydoc.destroy();
+        
+        // Remove from documents map
         this.documents.delete(documentId);
-        this.logger.log(`Cleaned up empty room for document: ${documentId}`);
+        this.logger.log(`🧹 Cleaned up empty room for document: ${documentId}. Active rooms: ${this.documents.size}`);
       }
     }
 
+    // Leave the socket.io room
     client.leave(documentId);
     
     // Notify other clients about disconnection
-    client.to(documentId).emit('user_left', { 
-      userId: client.userId, 
-      clientId: client.id 
-    });
+    if (client.userId) {
+      client.to(documentId).emit('user_left', { 
+        userId: client.userId, 
+        clientId: client.id 
+      });
+    }
+    
+    // Clear client document state
+    client.documentId = undefined;
+    client.ydoc = undefined;
   }
 
   /**
-   * Periodically save all active documents
+   * Periodically save all active documents with performance monitoring
    */
   private async saveAllDocuments() {
-    const now = Date.now();
+    const startTime = Date.now();
     const savePromises: Promise<void>[] = [];
+    const now = Date.now();
+
+    this.logger.debug(`🔄 Starting auto-save cycle. Active rooms: ${this.documents.size}, Connected clients: ${this.connectedClients.size}`);
 
     for (const [documentId, room] of this.documents.entries()) {
-      // Save if there's been activity and it's been at least 5 seconds
+      // Save if there's been activity and it's been at least the save interval
       if (room.clients.size > 0 && (now - room.lastSaved) >= this.saveInterval) {
         // Get any user from the room for saving (all have access)
         const anyClient = Array.from(room.clients)[0];
@@ -408,9 +474,11 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
           const savePromise = (async () => {
             try {
               await this.documentsService.saveDocument(documentId, anyClient.userId!, room.ydoc);
+              room.lastSaved = now; // Update last saved timestamp
+              this.logger.debug(`💾 Auto-saved document ${documentId}`);
             } catch (error) {
               const errorMessage = error instanceof Error ? error.message : 'Failed to auto-save document';
-              this.logger.error(`Failed to auto-save document ${documentId}:`, errorMessage);
+              this.logger.error(`❌ Failed to auto-save document ${documentId}:`, errorMessage);
             }
           })();
           
@@ -421,7 +489,23 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
 
     if (savePromises.length > 0) {
       await Promise.all(savePromises);
-      this.logger.debug(`Auto-saved ${savePromises.length} documents`);
+      const duration = Date.now() - startTime;
+      this.logger.log(`💾 Auto-saved ${savePromises.length} documents in ${duration}ms`);
+    } else {
+      this.logger.debug(`ℹ️ No documents needed saving`);
     }
+  }
+
+  /**
+   * Get gateway health status
+   */
+  getHealthStatus() {
+    return {
+      connectedClients: this.connectedClients.size,
+      activeDocuments: this.documents.size,
+      memoryUsage: process.memoryUsage(),
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    };
   }
 }

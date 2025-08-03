@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { memo } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -11,8 +11,8 @@ import { useYjs } from '../providers/YjsProvider'
 import LoadingSpinner from './LoadingSpinner'
 import DocumentErrorBoundary from './DocumentErrorBoundary'
 
-// The main editor component
-const TiptapEditor: React.FC = () => {
+// The main editor component - memoized to prevent unnecessary re-renders
+const TiptapEditor: React.FC = memo(() => {
   const { doc, isLoading, currentDocumentId } = useYjs(); // Get the Y.js document from the provider
 
   const editor = useEditor({
@@ -67,6 +67,9 @@ const TiptapEditor: React.FC = () => {
       </div>
     </DocumentErrorBoundary>
   )
-}
+})
+
+// Add display name for debugging
+TiptapEditor.displayName = 'TiptapEditor'
 
 export default TiptapEditor
