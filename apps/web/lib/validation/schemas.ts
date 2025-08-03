@@ -21,7 +21,7 @@ export const CreateDocumentSchema = z.object({
 
 export const UpdateDocumentSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Title too long').optional(),
-  encryptedContent: z.string().optional()
+  content: z.string().optional()
 })
 
 export const DocumentIdSchema = z.object({
@@ -44,18 +44,7 @@ export const AwarenessUpdateSchema = z.object({
 })
 
 // Database content validation
-export const EncryptedContentSchema = z.string().refine(
-  (val) => {
-    try {
-      // Test if it's valid base64
-      atob(val)
-      return true
-    } catch {
-      return false
-    }
-  },
-  'Invalid encrypted content format'
-)
+export const ContentSchema = z.string().min(0, 'Content must be a valid string')
 
 // Environment validation
 export const EnvSchema = z.object({

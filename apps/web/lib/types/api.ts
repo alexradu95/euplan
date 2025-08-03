@@ -3,14 +3,14 @@
  */
 
 export interface DocumentUpdateRequest {
-  encryptedContent?: string;
+  content?: string;
   title?: string;
 }
 
 export interface DocumentResponse {
   id: string;
   title: string;
-  encryptedContent: string | null;
+  content: string | null;
   createdAt: Date;
   updatedAt: Date;
   // Removed accessLevel - all documents are owned by the user

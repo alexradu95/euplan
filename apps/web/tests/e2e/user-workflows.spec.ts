@@ -282,8 +282,12 @@ test.describe('Document Management', () => {
     await authenticateUser(page, TEST_USERS.user1);
     
     // Intercept API calls to simulate error
-    await page.route('**/api/documents/*/autosave', route => {
-      route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+    await page.route('**/api/documents/*', route => {
+      if (route.request().method() === 'PATCH') {
+        route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+      } else {
+        route.continue()
+      }
     })
 
     const documentId = await createDocument(page, 'Error Test');

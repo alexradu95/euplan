@@ -39,11 +39,11 @@ describe('useDocumentPersistence', () => {
 
     // Verify fetch was called
     expect(fetch).toHaveBeenCalledWith(
-      `/api/documents/${documentId}/autosave`,
+      `/api/documents/${documentId}`,
       expect.objectContaining({
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: expect.stringContaining('encryptedContent')
+        body: expect.stringContaining('content')
       })
     )
   })
