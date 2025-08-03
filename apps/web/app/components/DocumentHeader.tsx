@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useYjs } from '../providers/YjsProvider'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { ChevronDown, Plus, LogOut, FileText, Wifi, WifiOff, Users } from 'lucide-react'
 
 interface Document {
@@ -20,6 +21,28 @@ export default function DocumentHeader() {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+
+  const handleTitleUpdate = (newTitle: string) => {
+    setCurrentDocument(prev => prev ? { ...prev, title: newTitle } : null)
+    setDocuments(prev => prev.map(doc => 
+      doc.id === currentDocumentId 
+        ? { ...doc, title: newTitle }
+        : doc
+    ))
+  }
+
+  const {
+    isEditingTitle,
+    editedTitle,
+    setEditedTitle,
+    startEditing,
+    saveTitle,
+    handleKeyDown,
+  } = useDocumentTitle({
+    currentDocument,
+    currentDocumentId,
+    onTitleUpdate: handleTitleUpdate,
+  })
 
   // Fetch user's documents
   useEffect(() => {
@@ -98,9 +121,26 @@ export default function DocumentHeader() {
             data-testid="create-document-button"
           >
             <FileText className="h-4 w-4" />
-            <span className="max-w-48 truncate" data-testid="document-title">
-              {isLoading ? 'Loading...' : currentDocument?.title || 'Select Document'}
-            </span>
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onBlur={saveTitle}
+                className="max-w-48 bg-transparent border-none outline-none text-sm font-medium text-gray-700"
+                data-testid="document-title-input"
+                autoFocus
+              />
+            ) : (
+              <span 
+                className="max-w-48 truncate cursor-pointer" 
+                data-testid="document-title"
+                onClick={startEditing}
+              >
+                {isLoading ? 'Loading...' : currentDocument?.title || 'Select Document'}
+              </span>
+            )}
             <ChevronDown className="h-4 w-4" />
           </button>
 
