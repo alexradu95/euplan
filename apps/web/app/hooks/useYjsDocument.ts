@@ -146,6 +146,9 @@ export function useYjsDocument() {
           currentDocumentId: documentId
         })
         
+        // Remember the last opened document in localStorage
+        localStorage.setItem('lastOpenedDocument', documentId)
+        
         // Join the new document room via WebSocket
         joinDocument(documentId)
       }
@@ -184,11 +187,22 @@ export function useYjsDocument() {
       try {
         const documents = await getUserDocuments()
         
-        
         if (documents.length > 0) {
-          // Load the most recent document
-          const latestDoc = documents[0]
-          await switchDocument(latestDoc.id, true) // Skip loading state since we're already loading
+          // Try to load the last opened document from localStorage
+          const lastOpenedId = localStorage.getItem('lastOpenedDocument')
+          let documentToLoad = null
+          
+          if (lastOpenedId) {
+            // Check if the last opened document still exists in user's documents
+            documentToLoad = documents.find(doc => doc.id === lastOpenedId)
+          }
+          
+          // If last opened document doesn't exist, use the most recent one
+          if (!documentToLoad) {
+            documentToLoad = documents[0] // Documents are ordered by updatedAt desc
+          }
+          
+          await switchDocument(documentToLoad.id, true) // Skip loading state since we're already loading
         } else {
           // Create a new document for the user
           const newDocId = await createDocument()

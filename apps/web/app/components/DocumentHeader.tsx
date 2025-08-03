@@ -52,17 +52,24 @@ export default function DocumentHeader() {
       try {
         const response = await fetch('/api/documents')
         if (response.ok) {
-          const docs = await response.json()
-          setDocuments(docs)
+          const result = await response.json()
+          // Extract data from the API response format { success: true, data: [...] }
+          const docs = result.data || []
+          // Ensure docs is an array
+          setDocuments(Array.isArray(docs) ? docs : [])
           
           // Set current document
-          if (currentDocumentId) {
+          if (currentDocumentId && Array.isArray(docs)) {
             const current = docs.find((doc: Document) => doc.id === currentDocumentId)
             setCurrentDocument(current || null)
           }
+        } else {
+          // Reset to empty array on API error
+          setDocuments([])
         }
-      } catch (error) {
+      } catch {
         // Silent fail - UI will show empty state
+        setDocuments([])
       }
     }
 
@@ -79,11 +86,12 @@ export default function DocumentHeader() {
         // Refresh documents list
         const response = await fetch('/api/documents')
         if (response.ok) {
-          const docs = await response.json()
-          setDocuments(docs)
+          const result = await response.json()
+          const docs = result.data || []
+          setDocuments(Array.isArray(docs) ? docs : [])
         }
       }
-    } catch (error) {
+    } catch {
       // Silent fail - user can retry
     } finally {
       setIsCreating(false)
@@ -94,7 +102,7 @@ export default function DocumentHeader() {
     try {
       await switchDocument(documentId)
       setShowDropdown(false)
-    } catch (error) {
+    } catch {
       // Silent fail - user can retry
     }
   }
@@ -102,7 +110,7 @@ export default function DocumentHeader() {
   const handleSignOut = async () => {
     try {
       await signOut({ callbackUrl: '/login' })
-    } catch (error) {
+    } catch {
       // Silent fail - likely already signed out
     }
   }
@@ -159,12 +167,12 @@ export default function DocumentHeader() {
 
                 {/* Document List */}
                 <div className="mt-2 border-t border-gray-100 pt-2" data-testid="document-list">
-                  {documents.length === 0 ? (
+                  {!Array.isArray(documents) || documents.length === 0 ? (
                     <div className="px-3 py-2 text-sm text-gray-500">
                       No documents found
                     </div>
                   ) : (
-                    documents.map((doc) => (
+                    Array.isArray(documents) && documents.map((doc) => (
                       <button
                         key={doc.id}
                         onClick={() => handleSwitchDocument(doc.id)}

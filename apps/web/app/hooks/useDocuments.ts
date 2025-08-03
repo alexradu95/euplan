@@ -20,7 +20,9 @@ export function useDocuments(db: Database | null) {
       })
       
       if (response.ok) {
-        const { documentId } = await response.json()
+        const result = await response.json()
+        // Extract documentId from the API response format
+        const documentId = result.data?.documentId || result.documentId
         return documentId
       }
       return null
@@ -55,7 +57,9 @@ export function useDocuments(db: Database | null) {
       // First try to load from server
       const response = await fetch(`/api/documents/${documentId}`)
       if (response.ok) {
-        const document = await response.json()
+        const result = await response.json()
+        // Extract document from the API response format
+        const document = result.data || result
         
         const ydoc = new Y.Doc()
         
@@ -93,8 +97,10 @@ export function useDocuments(db: Database | null) {
     try {
       const response = await fetch('/api/documents')
       if (response.ok) {
-        const documents = await response.json()
-        return documents
+        const result = await response.json()
+        // Extract data from the API response format { success: true, data: [...] }
+        const documents = result.data || []
+        return Array.isArray(documents) ? documents : []
       }
       return []
     } catch (error) {
