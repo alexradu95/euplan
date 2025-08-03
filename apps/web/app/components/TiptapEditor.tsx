@@ -9,6 +9,7 @@ import { SlashCommand } from '../editor/slash-command'
 import { EditorBubbleMenu } from './BubbleMenu'
 import { useYjs } from '../providers/YjsProvider'
 import LoadingSpinner from './LoadingSpinner'
+import DocumentErrorBoundary from './DocumentErrorBoundary'
 
 // The main editor component
 const TiptapEditor: React.FC = () => {
@@ -58,11 +59,13 @@ const TiptapEditor: React.FC = () => {
   }
 
   return (
-    <div className="relative border border-gray-300 rounded-lg p-4 min-h-[400px]" data-testid="editor-content">
-      <Toolbar editor={editor} />
-      <EditorBubbleMenu editor={editor} />
-      <EditorContent editor={editor} />
-    </div>
+    <DocumentErrorBoundary>
+      <div className="relative border border-gray-300 rounded-lg p-4 min-h-[400px]" data-testid="editor-content">
+        <Toolbar editor={editor} />
+        <EditorBubbleMenu editor={editor} />
+        <EditorContent editor={editor} />
+      </div>
+    </DocumentErrorBoundary>
   )
 }
 

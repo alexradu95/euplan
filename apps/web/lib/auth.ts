@@ -39,11 +39,50 @@ export const authConfig: NextAuthConfig = {
           return null
         }
 
+        const currentUser = user[0]
+
+        // Check if account is locked
+        if (currentUser.lockedUntil && currentUser.lockedUntil > new Date()) {
+          console.warn(`Login attempt on locked account: ${email}`)
+          return null
+        }
+
         // Verify password
-        const passwordsMatch = await bcrypt.compare(password, user[0].hashedPassword)
+        const passwordsMatch = await bcrypt.compare(password, currentUser.hashedPassword)
 
         if (!passwordsMatch) {
+          // Increment failed attempts
+          const failedAttempts = (currentUser.failedLoginAttempts || 0) + 1
+          const MAX_ATTEMPTS = 5
+          const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 minutes
+
+          let updateData: any = {
+            failedLoginAttempts: failedAttempts
+          }
+
+          // Lock account if max attempts reached
+          if (failedAttempts >= MAX_ATTEMPTS) {
+            updateData.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION)
+            console.warn(`Account locked due to ${failedAttempts} failed attempts: ${email}`)
+          }
+
+          await db
+            .update(users)
+            .set(updateData)
+            .where(eq(users.id, currentUser.id))
+
           return null
+        }
+
+        // Reset failed attempts on successful login
+        if (currentUser.failedLoginAttempts && currentUser.failedLoginAttempts > 0) {
+          await db
+            .update(users)
+            .set({
+              failedLoginAttempts: 0,
+              lockedUntil: null
+            })
+            .where(eq(users.id, currentUser.id))
         }
 
         return {

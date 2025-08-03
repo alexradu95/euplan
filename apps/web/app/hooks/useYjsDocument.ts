@@ -127,25 +127,13 @@ export function useYjsDocument() {
       try {
         const documents = await getUserDocuments()
         
-        // Debug: Log what's happening
-        if (typeof window !== 'undefined') {
-          console.log('[DEBUG] Initialization - documents found:', documents.length)
-          console.log('[DEBUG] Current user:', userId)
-          console.log('[DEBUG] Previous init user:', initializationRef.current)
-        }
         
         if (documents.length > 0) {
           // Load the most recent document
           const latestDoc = documents[0]
-          if (typeof window !== 'undefined') {
-            console.log('[DEBUG] Loading existing document:', latestDoc.id)
-          }
           await switchDocument(latestDoc.id, true) // Skip loading state since we're already loading
         } else {
           // Create a new document for the user
-          if (typeof window !== 'undefined') {
-            console.log('[DEBUG] Creating new document')
-          }
           const newDocId = await createDocument()
           if (newDocId) {
             await switchDocument(newDocId, true) // Skip loading state since we're already loading

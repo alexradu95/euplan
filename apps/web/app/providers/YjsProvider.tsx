@@ -3,6 +3,7 @@
 import React, { createContext, useContext } from 'react'
 import * as Y from 'yjs'
 import { useYjsDocument } from '../hooks/useYjsDocument'
+import ErrorBoundary from '../components/ErrorBoundary'
 
 // Define the shape of the data and functions our context will provide
 interface YjsContextType {
@@ -33,9 +34,20 @@ export const useYjs = () => useContext(YjsContext)
 export const YjsProvider = ({ children }: { children: React.ReactNode }) => {
   const yjsDocument = useYjsDocument()
 
+  const handleProviderError = (error: Error, errorInfo: React.ErrorInfo) => {
+    console.error('YjsProvider error:', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+    })
+  }
+
   return (
-    <YjsContext.Provider value={yjsDocument}>
-      {children}
-    </YjsContext.Provider>
+    <ErrorBoundary onError={handleProviderError}>
+      <YjsContext.Provider value={yjsDocument}>
+        {children}
+      </YjsContext.Provider>
+    </ErrorBoundary>
   )
 }

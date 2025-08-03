@@ -13,9 +13,6 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false,
     "skipLibCheck": true
   },
   "exclude": [

@@ -1,7 +1,7 @@
 /**
  * Centralized error handling with structured logging
  */
-import { Logger } from '@nestjs/common';
+import { Logger, UnauthorizedException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ZodError } from 'zod';
 import { DocumentError, CollaborationError, ValidationError, isCustomError } from './errors';
 
@@ -68,6 +68,36 @@ export class ErrorHandler {
         code: 'VALIDATION_FAILED',
         context: baseContext,
         details: error.issues,
+      };
+    }
+
+    if (error instanceof UnauthorizedException) {
+      return {
+        name: error.name,
+        message: error.message,
+        code: 'AUTHENTICATION_ERROR',
+        context: baseContext,
+        stack: error.stack,
+      };
+    }
+
+    if (error instanceof ForbiddenException) {
+      return {
+        name: error.name,
+        message: error.message,
+        code: 'ACCESS_DENIED',
+        context: baseContext,
+        stack: error.stack,
+      };
+    }
+
+    if (error instanceof NotFoundException) {
+      return {
+        name: error.name,
+        message: error.message,
+        code: 'DOCUMENT_NOT_FOUND',
+        context: baseContext,
+        stack: error.stack,
       };
     }
 
@@ -164,6 +194,7 @@ export class ErrorHandler {
     const userErrorCodes = [
       'VALIDATION_FAILED',
       'ACCESS_DENIED',
+      'AUTHENTICATION_ERROR',
       'DOCUMENT_NOT_FOUND',
       'INSUFFICIENT_PERMISSIONS',
     ];
@@ -175,9 +206,11 @@ export class ErrorHandler {
     const safeMsgMap: Record<string, string> = {
       'DOCUMENT_NOT_FOUND': 'Document not found or access denied',
       'ACCESS_DENIED': 'Access denied',
+      'AUTHENTICATION_ERROR': error.message, // Pass through original auth error messages
       'VALIDATION_FAILED': 'Invalid input provided',
       'COLLABORATION_ERROR': 'Collaboration service temporarily unavailable',
       'DATABASE_CONNECTION_FAILED': 'Service temporarily unavailable',
+      'UNKNOWN_ERROR': error.message, // Pass through original error messages for unknown errors
     };
 
     return safeMsgMap[error.code] || 'An unexpected error occurred';

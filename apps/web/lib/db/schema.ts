@@ -17,6 +17,8 @@ export const users = pgTable("user", {
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
   hashedPassword: text("hashedPassword"), // For credential-based auth
+  failedLoginAttempts: integer("failed_login_attempts").default(0),
+  lockedUntil: timestamp("locked_until", { mode: "date" }),
 })
 
 // Accounts table - for OAuth providers (Google, GitHub, etc.)

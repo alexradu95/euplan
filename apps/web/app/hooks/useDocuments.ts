@@ -94,22 +94,10 @@ export function useDocuments(db: Database | null) {
       const response = await fetch('/api/documents')
       if (response.ok) {
         const documents = await response.json()
-        // Debug: Log document count
-        if (typeof window !== 'undefined') {
-          console.log('[DEBUG] Found documents:', documents.length)
-        }
         return documents
-      }
-      // Debug: Log API error
-      if (typeof window !== 'undefined') {
-        console.log('[DEBUG] API returned error:', response.status, response.statusText)
       }
       return []
     } catch (error) {
-      // Debug: Log fetch error
-      if (typeof window !== 'undefined') {
-        console.log('[DEBUG] Fetch error:', error)
-      }
       return []
     }
   }, [session?.user?.id])

@@ -226,9 +226,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleJoinDocument(mockSocket, { documentId: 'doc123' });
 
       expect(mockSocket.emit).toHaveBeenCalledWith('join_error', {
-        message: expect.stringContaining('Document not found'),
-        code: expect.any(String),
-        shouldRetry: expect.any(Boolean),
+        message: 'Document not found',
+        code: 'UNKNOWN_ERROR',
+        shouldRetry: false,
       });
       expect(mockSocket.join).not.toHaveBeenCalled();
     });
@@ -316,7 +316,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleDocumentUpdate(mockSocket, updateData);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('update_error', {
-        message: expect.stringContaining('Invalid document access'),
+        message: 'Invalid document access',
+        code: 'AUTHENTICATION_ERROR',
+        shouldRetry: false,
       });
     });
 
@@ -334,7 +336,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleDocumentUpdate(mockSocket, updateData);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('update_error', {
-        message: expect.stringContaining('Invalid document access'),
+        message: 'Invalid document access',
+        code: 'AUTHENTICATION_ERROR',
+        shouldRetry: false,
       });
     });
 
@@ -354,7 +358,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleDocumentUpdate(mockSocket, updateData);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('update_error', {
-        message: expect.stringContaining('No write access'),
+        message: 'No write access to document',
+        code: 'AUTHENTICATION_ERROR',
+        shouldRetry: false,
       });
     });
 
@@ -374,7 +380,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleDocumentUpdate(mockSocket, updateData);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('update_error', {
-        message: expect.stringContaining('Document room not found'),
+        message: 'Document room not found',
+        code: 'UNKNOWN_ERROR',
+        shouldRetry: false,
       });
     });
   });
