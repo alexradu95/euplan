@@ -31,6 +31,7 @@
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.44.4",
     "lucide-react": "^0.535.0",
+    "nanoid": "^5.1.5",
     "next": "15.4.5",
     "next-auth": "5.0.0-beta.29",
     "pg": "^8.16.3",
