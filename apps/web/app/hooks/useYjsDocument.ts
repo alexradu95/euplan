@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react'
 import * as Y from 'yjs'
 import type { Database } from 'sql.js'
 import { useDatabase } from './useDatabase'
-import { useWebSocket } from './useWebSocket'
 import { useDocuments } from './useDocuments'
 
 export function useYjsDocument() {
@@ -32,38 +31,16 @@ export function useYjsDocument() {
     docRef.current = doc
   }, [doc])
 
-  const handleDocumentSync = useCallback((state: number[]) => {
-    if (docRef.current) {
-      const update = new Uint8Array(state)
-      Y.applyUpdate(docRef.current, update)
-    }
-  }, [])
-
-  const handleDocumentUpdate = useCallback((data: { update: number[]; clientId: string; userId: string }) => {
-    if (docRef.current) {
-      const update = new Uint8Array(data.update)
-      Y.applyUpdate(docRef.current, update)
-    }
-  }, [])
-
-  const { isConnected, connectedUsers, joinDocument, sendUpdate } = useWebSocket({
-    onDocumentSync: handleDocumentSync,
-    onDocumentUpdate: handleDocumentUpdate
-  })
-
   const setupDocumentSync = useCallback((ydoc: Y.Doc, documentId: string) => {
-    // Set up real-time synchronization for the document
+    // Set up local persistence for the document
     ydoc.on('update', (update: Uint8Array) => {
-      // Send updates to sync server if connected
-      sendUpdate(update, documentId)
-      
       // Save to local SQLite for offline support
       if (db) {
         db.run("INSERT OR REPLACE INTO documents (id, data) VALUES (?, ?)", [documentId, update])
         saveDatabase(db)
       }
     })
-  }, [sendUpdate, db, saveDatabase])
+  }, [db, saveDatabase])
 
   const switchDocument = useCallback(async (documentId: string, skipLoadingState = false) => {
     if (!session?.user?.id || !db) return
@@ -88,9 +65,6 @@ export function useYjsDocument() {
           doc: newDoc,
           currentDocumentId: documentId
         })
-        
-        // Join the new document room via WebSocket
-        joinDocument(documentId)
       }
     } catch (error) {
       // Silent fail - user can retry
@@ -99,7 +73,7 @@ export function useYjsDocument() {
         setIsLoading(false)
       }
     }
-  }, [session?.user?.id, db, doc, currentDocumentId, loadDocument, saveDocumentToServer, setupDocumentSync, joinDocument])
+  }, [session?.user?.id, db, doc, currentDocumentId, loadDocument, saveDocumentToServer, setupDocumentSync])
 
   // Handle user logout - separate effect to prevent dependency issues
   useEffect(() => {
@@ -185,8 +159,6 @@ export function useYjsDocument() {
     currentDocumentId,
     switchDocument,
     createDocument,
-    isLoading: isLoading || documentsLoading,
-    isConnected,
-    connectedUsers
+    isLoading: isLoading || documentsLoading
   }
 }

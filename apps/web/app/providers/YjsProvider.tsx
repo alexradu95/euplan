@@ -11,8 +11,6 @@ interface YjsContextType {
   switchDocument: (documentId: string) => Promise<void>
   createDocument: (title?: string) => Promise<string | null>
   isLoading: boolean
-  isConnected: boolean
-  connectedUsers: Set<string>
 }
 
 // Create the React Context with a default value
@@ -22,8 +20,6 @@ const YjsContext = createContext<YjsContextType>({
   switchDocument: async () => {},
   createDocument: async () => null,
   isLoading: false,
-  isConnected: false,
-  connectedUsers: new Set(),
 })
 
 // Create a custom hook to make it easy to access the context in other components
