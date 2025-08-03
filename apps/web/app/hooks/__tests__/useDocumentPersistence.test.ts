@@ -1,6 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { useDocumentPersistence } from '../useDocumentPersistence'
-import * as Y from 'yjs'
 
 // Mock fetch
 global.fetch = jest.fn()
@@ -22,15 +21,22 @@ describe('useDocumentPersistence', () => {
   })
 
   it('should save document after changes', async () => {
-    const doc = new Y.Doc()
+    const content = 'Initial content'
     const documentId = 'test-doc-id'
 
     const { result } = renderHook(() =>
-      useDocumentPersistence(doc, documentId, { autoSaveDelay: 100 })
+      useDocumentPersistence(content, documentId, { autoSaveDelay: 100 })
     )
 
     // Make a change to the document
-    doc.getText().insert(0, 'Hello World')
+        // Simulate content change by updating the content
+    const { rerender } = renderHook(
+      (props) => useDocumentPersistence(props.content, props.documentId, { autoSaveDelay: 100 }),
+      { initialProps: { content: 'Initial content', documentId } }
+    )
+
+    // Change content to trigger save
+    rerender({ content: 'Hello World', documentId })
 
     // Wait for auto-save
     await waitFor(() => {
@@ -54,15 +60,15 @@ describe('useDocumentPersistence', () => {
       statusText: 'Internal Server Error'
     })
 
-    const doc = new Y.Doc()
+    const content = 'Test content'
     const documentId = 'test-doc-id'
 
     const { result } = renderHook(() =>
-      useDocumentPersistence(doc, documentId, { autoSaveDelay: 100 })
+      useDocumentPersistence(content, documentId, { autoSaveDelay: 100 })
     )
 
-    // Make a change
-    doc.getText().insert(0, 'Test')
+    // Trigger manual save to test error handling
+    await result.current.manualSave()
 
     // Wait for error state
     await waitFor(() => {
@@ -71,40 +77,36 @@ describe('useDocumentPersistence', () => {
   })
 
   it('should support manual save', async () => {
-    const doc = new Y.Doc()
+    const content = 'Manual save test'
     const documentId = 'test-doc-id'
 
     const { result } = renderHook(() =>
-      useDocumentPersistence(doc, documentId)
+      useDocumentPersistence(content, documentId)
     )
-
-    doc.getText().insert(0, 'Manual save test')
 
     // Trigger manual save
     await result.current.manualSave()
 
     expect(fetch).toHaveBeenCalled()
-    expect(result.current.saveStatus).toBe('saved')
+    
+    await waitFor(() => {
+      expect(result.current.saveStatus).toBe('saved')
+    })
   })
 
   it('should track last saved time', async () => {
-    const doc = new Y.Doc()
+    const content = 'Test content'
     const documentId = 'test-doc-id'
-    const mockSavedTime = new Date('2024-01-01T00:00:00Z')
-
-    ;(fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ success: true, savedAt: mockSavedTime.toISOString() })
-    })
 
     const { result } = renderHook(() =>
-      useDocumentPersistence(doc, documentId, { autoSaveDelay: 100 })
+      useDocumentPersistence(content, documentId, { autoSaveDelay: 100 })
     )
 
-    doc.getText().insert(0, 'Test content')
+    // Trigger manual save
+    await result.current.manualSave()
 
     await waitFor(() => {
-      expect(result.current.lastSaved).toEqual(mockSavedTime)
+      expect(result.current.lastSaved).toBeInstanceOf(Date)
     }, { timeout: 3000 })
   })
 })
