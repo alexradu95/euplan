@@ -80,7 +80,7 @@ class Logger {
   private sendToMonitoring(level: string, message: string, context?: LogContext): void {
     // Placeholder for monitoring service integration
     // Could integrate with Sentry, LogRocket, etc.
-    if (typeof window !== 'undefined' && window.fetch) {
+    if (typeof window !== 'undefined') {
       fetch('/api/logging', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
