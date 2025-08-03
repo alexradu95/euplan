@@ -2,6 +2,8 @@
  * Environment configuration with validation and type safety
  */
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const environmentSchema = z.object({
   // Application
@@ -33,7 +35,40 @@ export type Environment = z.infer<typeof environmentSchema>;
 class ConfigService {
   private config: Environment;
 
+  private loadEnvFile() {
+    // Check for environment files in order of precedence: .env.local, .env
+    const envFiles = ['.env.local', '.env'];
+    
+    for (const envFile of envFiles) {
+      const envPath = path.join(process.cwd(), envFile);
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const envLines = envContent.split('\n');
+        
+        envLines.forEach(line => {
+          const trimmedLine = line.trim();
+          if (trimmedLine && !trimmedLine.startsWith('#')) {
+            const [key, ...valueParts] = trimmedLine.split('=');
+            if (key && valueParts.length > 0) {
+              const value = valueParts.join('=').trim();
+              // Only set if not already in process.env (process.env takes precedence)
+              if (!process.env[key.trim()]) {
+                process.env[key.trim()] = value;
+              }
+            }
+          }
+        });
+        
+        console.log(`✅ Loaded environment from ${envFile}`);
+        return; // Use the first file found
+      }
+    }
+  }
+
   constructor() {
+    // Load .env file manually if it exists
+    this.loadEnvFile();
+    
     const result = environmentSchema.safeParse(process.env);
     
     if (!result.success) {

@@ -101,11 +101,22 @@ export function useYjsDocument() {
     }
   }, [session?.user?.id, db, doc, currentDocumentId, loadDocument, saveDocumentToServer, setupDocumentSync, joinDocument])
 
+  // Handle user logout - separate effect to prevent dependency issues
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      setDocumentState({
+        doc: null,
+        currentDocumentId: null
+      })
+      initializationRef.current = null
+    }
+  }, [status])
+
   // Initialize user session and load first document
   useEffect(() => {
     const initializeUserSession = async () => {
       const userId = session?.user?.id
-      if (!db || !userId || status === 'loading') return
+      if (!db || !userId || status !== 'authenticated') return
       
       // Check if we've already initialized for this user
       if (initializationRef.current === userId) return
@@ -148,14 +159,7 @@ export function useYjsDocument() {
       }
     }
 
-    // Clear document when user logs out
-    if (status === 'unauthenticated') {
-      setDocumentState({
-        doc: null,
-        currentDocumentId: null
-      })
-      initializationRef.current = null
-    } else if (status === 'authenticated' && isInitialized) {
+    if (status === 'authenticated' && isInitialized) {
       initializeUserSession()
     }
   }, [db, session?.user?.id, status, isInitialized, switchDocument, createDocument, getUserDocuments])

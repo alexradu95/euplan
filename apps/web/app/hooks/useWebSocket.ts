@@ -52,10 +52,14 @@ export function useWebSocket({
       socket.on('auth_error', (error) => {
         import('@/lib/logger').then(({ logError }) => {
           logError('Sync server authentication failed', new Error(error.message), {
-            socketId: socket.id
+            socketId: socket.id,
+            shouldRetry: error.shouldRetry,
+            code: error.code
           })
         })
         setIsConnected(false)
+        // Disconnect socket on auth error to prevent reconnection attempts
+        socket.disconnect()
       })
 
       socket.on('join_error', (error) => {
@@ -101,7 +105,7 @@ export function useWebSocket({
       socketRef.current = socket
     } catch (error) {
       import('@/lib/logger').then(({ logError }) => {
-        logError('Failed to connect to sync server', error instanceof Error ? error : new Error(String(error)))
+        logError('Sync server connection failed', error instanceof Error ? error : new Error('An unexpected error occurred'))
       })
       setIsConnected(false)
     }
