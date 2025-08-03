@@ -2,10 +2,16 @@
 
 import { useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import * as Y from 'yjs'
-import type { Database } from 'sql.js'
 
-export function useDocuments(db: Database | null) {
+interface Document {
+  id: string
+  title: string
+  content: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export function useDocuments() {
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -13,6 +19,7 @@ export function useDocuments(db: Database | null) {
     if (!session?.user?.id) return null
     
     try {
+      setIsLoading(true)
       const response = await fetch('/api/documents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,100 +32,76 @@ export function useDocuments(db: Database | null) {
       }
       return null
     } catch (error) {
-      return null
-    }
-  }, [session?.user?.id])
-
-  const saveDocumentToServer = useCallback(async (documentId: string, ydoc: Y.Doc) => {
-    if (!session?.user?.id) return
-    
-    try {
-      const data = Y.encodeStateAsUpdate(ydoc)
-      const base64Data = btoa(String.fromCharCode(...data))
-      
-      await fetch(`/api/documents/${documentId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedContent: base64Data }),
-      })
-    } catch (error) {
-      // Silent fail - operation will be retried
-    }
-  }, [session?.user?.id])
-
-  const loadDocument = useCallback(async (documentId: string): Promise<Y.Doc | null> => {
-    if (!session?.user?.id || !db) return null
-    
-    setIsLoading(true)
-    
-    try {
-      // First try to load from server
-      const response = await fetch(`/api/documents/${documentId}`)
-      if (response.ok) {
-        const document = await response.json()
-        
-        const ydoc = new Y.Doc()
-        
-        // Load from server if content exists
-        if (document.encryptedContent) {
-          try {
-            // Validate base64 format
-            const binaryData = Uint8Array.from(atob(document.encryptedContent), c => c.charCodeAt(0))
-            Y.applyUpdate(ydoc, binaryData)
-          } catch (error) {
-            // Invalid content format - skip loading
-          }
-        } else {
-          // Load from local SQLite as fallback
-          const res = db.exec(`SELECT data FROM documents WHERE id = '${documentId}'`)
-          if (res[0]?.values[0]?.[0]) {
-            const dbState = res[0].values[0][0] as Uint8Array
-            Y.applyUpdate(ydoc, dbState)
-          }
-        }
-        
-        return ydoc
-      }
-      return null
-    } catch (error) {
+      console.error('Error creating document:', error)
       return null
     } finally {
       setIsLoading(false)
     }
-  }, [session?.user?.id, db])
+  }, [session?.user?.id])
 
-  const getUserDocuments = useCallback(async () => {
-    if (!session?.user?.id) return []
-    
+  const loadDocument = useCallback(async (documentId: string): Promise<Document | null> => {
+    if (!session?.user?.id) return null
+
     try {
+      setIsLoading(true)
+      const response = await fetch(`/api/documents/${documentId}`)
+      
+      if (response.ok) {
+        const document = await response.json()
+        return document
+      }
+      return null
+    } catch (error) {
+      console.error('Error loading document:', error)
+      return null
+    } finally {
+      setIsLoading(false)
+    }
+  }, [session?.user?.id])
+
+  const getUserDocuments = useCallback(async (): Promise<Document[]> => {
+    if (!session?.user?.id) return []
+
+    try {
+      setIsLoading(true)
       const response = await fetch('/api/documents')
+      
       if (response.ok) {
         const documents = await response.json()
-        // Debug: Log document count
-        if (typeof window !== 'undefined') {
-          console.log('[DEBUG] Found documents:', documents.length)
-        }
         return documents
-      }
-      // Debug: Log API error
-      if (typeof window !== 'undefined') {
-        console.log('[DEBUG] API returned error:', response.status, response.statusText)
       }
       return []
     } catch (error) {
-      // Debug: Log fetch error
-      if (typeof window !== 'undefined') {
-        console.log('[DEBUG] Fetch error:', error)
-      }
+      console.error('Error fetching documents:', error)
       return []
+    } finally {
+      setIsLoading(false)
+    }
+  }, [session?.user?.id])
+
+  const deleteDocument = useCallback(async (documentId: string): Promise<boolean> => {
+    if (!session?.user?.id) return false
+
+    try {
+      setIsLoading(true)
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'DELETE',
+      })
+      
+      return response.ok
+    } catch (error) {
+      console.error('Error deleting document:', error)
+      return false
+    } finally {
+      setIsLoading(false)
     }
   }, [session?.user?.id])
 
   return {
+    isLoading,
     createDocument,
     loadDocument,
-    saveDocumentToServer,
     getUserDocuments,
-    isLoading
+    deleteDocument,
   }
 }

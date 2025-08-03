@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import * as Y from 'yjs'
 import { useSession } from 'next-auth/react'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -11,7 +10,7 @@ interface UseDocumentPersistenceOptions {
 }
 
 export function useDocumentPersistence(
-  ydoc: Y.Doc | null,
+  content: string | null,
   documentId: string | null,
   options: UseDocumentPersistenceOptions = {}
 ) {
@@ -19,6 +18,7 @@ export function useDocumentPersistence(
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastContentRef = useRef<string | null>(null)
   
   const {
     autoSaveDelay = 2000, // 2 seconds
@@ -28,21 +28,15 @@ export function useDocumentPersistence(
 
   // Save function
   const saveDocument = useCallback(async () => {
-    if (!ydoc || !documentId || !session?.user?.id) return
+    if (!content || !documentId || !session?.user?.id) return
 
     setSaveStatus('saving')
 
     try {
-      // Get Y.js document state as binary
-      const state = Y.encodeStateAsUpdate(ydoc)
-      
-      // Convert to base64 for transmission
-      const encryptedContent = btoa(String.fromCharCode(...state))
-
-      const response = await fetch(`/api/documents/${documentId}/autosave`, {
-        method: 'POST',
+      const response = await fetch(`/api/documents/${documentId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ encryptedContent }),
+        body: JSON.stringify({ content }),
       })
 
       if (!response.ok) {
@@ -51,6 +45,7 @@ export function useDocumentPersistence(
 
       setSaveStatus('saved')
       setLastSaved(new Date())
+      lastContentRef.current = content
       onSaveSuccess?.()
 
     } catch (error) {
@@ -58,7 +53,7 @@ export function useDocumentPersistence(
       setSaveStatus('error')
       onSaveError?.(error as Error)
     }
-  }, [ydoc, documentId, session, onSaveSuccess, onSaveError])
+  }, [content, documentId, session, onSaveSuccess, onSaveError])
 
   // Debounced save function
   const debouncedSave = useCallback(() => {
@@ -71,23 +66,18 @@ export function useDocumentPersistence(
     }, autoSaveDelay)
   }, [saveDocument, autoSaveDelay])
 
-  // Listen for Y.js document changes
+  // Auto-save when content changes
   useEffect(() => {
-    if (!ydoc || !documentId) return
+    if (!content || !documentId || content === lastContentRef.current) return
 
-    const handleUpdate = () => {
-      debouncedSave()
-    }
-
-    ydoc.on('update', handleUpdate)
+    debouncedSave()
 
     return () => {
-      ydoc.off('update', handleUpdate)
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [ydoc, documentId, debouncedSave])
+  }, [content, documentId, debouncedSave])
 
   // Manual save function
   const manualSave = useCallback(async () => {
@@ -96,19 +86,6 @@ export function useDocumentPersistence(
     }
     await saveDocument()
   }, [saveDocument])
-
-  // Save on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-        // Note: Can't await in cleanup, so this is fire-and-forget
-        if (ydoc && documentId && session?.user?.id) {
-          saveDocument()
-        }
-      }
-    }
-  }, [ydoc, documentId, session, saveDocument])
 
   return {
     saveStatus,

@@ -48,10 +48,10 @@ export async function POST(request: NextRequest) {
     const [newDocument] = await db.insert(documents).values({
       userId: session.user.id,
       title,
-      encryptedContent: '', // Empty initially
+      content: '', // Empty initially
     }).returning({ id: documents.id })
 
-    return NextResponse.json({ id: newDocument.id })
+    return NextResponse.json({ documentId: newDocument.id })
   } catch (error) {
     console.error('Document creation error:', error)
     return NextResponse.json(

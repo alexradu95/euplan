@@ -41,7 +41,7 @@ export const verificationTokens = pgTable(
   })
 )
 
-// Documents table - stores user documents with encrypted content
+// Documents table - stores user documents with HTML content
 export const documents = pgTable(
   "documents",
   {
@@ -50,7 +50,7 @@ export const documents = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull().default("Untitled Document"),
-    encryptedContent: text("encryptedContent"), // Base64 encoded encrypted Y.js document state
+    content: text("content"), // HTML content from Tiptap editor
     createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
   },

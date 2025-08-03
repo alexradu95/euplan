@@ -2,14 +2,22 @@
 
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useYjs } from '../providers/YjsProvider'
+import { useDocumentContext } from '../providers/DocumentProvider'
 import { ChevronDown, LogOut, Check, Loader, AlertCircle, Save } from 'lucide-react'
 
 export default function DocumentHeader() {
   const { data: session } = useSession()
-  const { saveStatus, lastSaved, manualSave } = useYjs()
+  const { saveStatus, lastSaved, manualSave, title, updateTitle, currentDocumentId } = useDocumentContext()
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [tempTitle, setTempTitle] = useState(title)
+
+  const handleTitleSubmit = async () => {
+    if (tempTitle.trim() && tempTitle !== title) {
+      await updateTitle(tempTitle.trim())
+    }
+    setIsEditingTitle(false)
+  }
 
   const formatRelativeTime = (date: Date) => {
     const now = new Date()
@@ -29,11 +37,15 @@ export default function DocumentHeader() {
           {isEditingTitle ? (
             <input
               type="text"
-              defaultValue="My Document"
+              value={tempTitle}
+              onChange={(e) => setTempTitle(e.target.value)}
               className="text-lg font-semibold bg-transparent border-none outline-none focus:bg-gray-50 px-2 py-1 rounded"
-              onBlur={() => setIsEditingTitle(false)}
+              onBlur={handleTitleSubmit}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
+                  handleTitleSubmit()
+                } else if (e.key === 'Escape') {
+                  setTempTitle(title)
                   setIsEditingTitle(false)
                 }
               }}
@@ -42,9 +54,14 @@ export default function DocumentHeader() {
           ) : (
             <h1
               className="text-lg font-semibold cursor-pointer hover:text-blue-600 px-2 py-1 rounded hover:bg-gray-50"
-              onClick={() => setIsEditingTitle(true)}
+              onClick={() => {
+                if (currentDocumentId) {
+                  setTempTitle(title)
+                  setIsEditingTitle(true)
+                }
+              }}
             >
-              My Document
+              {currentDocumentId ? title : 'EuPlan'}
             </h1>
           )}
         </div>

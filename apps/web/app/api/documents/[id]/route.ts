@@ -83,3 +83,53 @@ export async function DELETE(
     )
   }
 }
+
+// PATCH /api/documents/[id] - Update document content/title
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth()
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id: documentId } = await params
+    const { content, title } = await request.json()
+
+    // Build update object
+    const updateData: any = {}
+    if (content !== undefined) updateData.content = content
+    if (title !== undefined) updateData.title = title
+    updateData.updatedAt = new Date()
+
+    // Update the document
+    const updatedDoc = await db
+      .update(documents)
+      .set(updateData)
+      .where(
+        and(
+          eq(documents.id, documentId),
+          eq(documents.userId, session.user.id)
+        )
+      )
+      .returning({ id: documents.id })
+
+    if (!updatedDoc[0]) {
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Document update error:', error)
+    return NextResponse.json(
+      { error: 'Failed to update document' },
+      { status: 500 }
+    )
+  }
+}
