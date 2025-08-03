@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verify authentication
@@ -14,6 +14,9 @@ export async function POST(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    // Await params to get the document ID
+    const { id: documentId } = await params
 
     // Parse request body
     const { encryptedContent } = await request.json()
@@ -26,7 +29,7 @@ export async function POST(
     const existingDoc = await db
       .select({ userId: documents.userId })
       .from(documents)
-      .where(eq(documents.id, params.id))
+      .where(eq(documents.id, documentId))
       .limit(1)
 
     if (!existingDoc[0] || existingDoc[0].userId !== session.user.id) {
@@ -40,7 +43,7 @@ export async function POST(
         encryptedContent,
         updatedAt: new Date(),
       })
-      .where(eq(documents.id, params.id))
+      .where(eq(documents.id, documentId))
 
     return NextResponse.json({ 
       success: true,

@@ -3,7 +3,6 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
-import { nanoid } from 'nanoid'
 
 // GET /api/documents - List user's documents
 export async function GET() {
@@ -46,18 +45,13 @@ export async function POST(request: NextRequest) {
 
     const { title = 'Untitled Document' } = await request.json()
 
-    const documentId = nanoid()
-    
-    await db.insert(documents).values({
-      id: documentId,
+    const [newDocument] = await db.insert(documents).values({
       userId: session.user.id,
       title,
       encryptedContent: '', // Empty initially
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    })
+    }).returning({ id: documents.id })
 
-    return NextResponse.json({ id: documentId })
+    return NextResponse.json({ id: newDocument.id })
   } catch (error) {
     console.error('Document creation error:', error)
     return NextResponse.json(

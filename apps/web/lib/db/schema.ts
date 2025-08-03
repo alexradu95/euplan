@@ -50,9 +50,9 @@ export const documents = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     title: text("title").notNull().default("Untitled Document"),
-    encryptedContent: text("encrypted_content"), // Base64 encoded encrypted Y.js document state
-    createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
-    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+    encryptedContent: text("encryptedContent"), // Base64 encoded encrypted Y.js document state
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
   },
   (documents) => ({
     userIdIdx: index("idx_documents_user_id").on(documents.userId),
