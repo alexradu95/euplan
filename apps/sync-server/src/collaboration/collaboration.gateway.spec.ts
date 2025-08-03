@@ -6,15 +6,15 @@ import * as Y from 'yjs';
 import { CollaborationGateway } from './collaboration.gateway';
 import { DocumentsService } from '../documents/documents.service';
 
-interface MockSocket extends Partial<Socket> {
+interface MockSocket extends Partial<AuthenticatedSocket> {
   id: string;
   userId?: string;
   documentId?: string;
   ydoc?: Y.Doc;
-  handshake: {
+  handshake: Partial<{
     auth?: { token?: string };
     query?: { token?: string };
-  };
+  }>;
   emit: jest.Mock;
   join: jest.Mock;
   leave: jest.Mock;
@@ -29,7 +29,7 @@ const createMockSocket = (overrides?: Partial<MockSocket>): MockSocket => {
 
   return {
     id: 'socket123',
-    handshake: { auth: {}, query: {} },
+    handshake: { auth: {}, query: {} } as any,
     emit: jest.fn(),
     join: jest.fn(),
     leave: jest.fn(),
