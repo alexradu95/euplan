@@ -40,14 +40,22 @@ export class ErrorHandler {
     };
 
     if (isCustomError(error)) {
+      const documentId = (error instanceof DocumentError || error instanceof CollaborationError) 
+        ? error.documentId || context.documentId 
+        : context.documentId;
+      
+      const userId = error instanceof DocumentError 
+        ? error.userId || context.userId 
+        : context.userId;
+
       return {
         name: error.name,
         message: error.message,
         code: this.getErrorCode(error),
         context: {
           ...baseContext,
-          documentId: error.documentId || context.documentId,
-          userId: error.userId || context.userId,
+          documentId,
+          userId,
         },
         stack: error.stack,
       };
@@ -92,7 +100,7 @@ export class ErrorHandler {
       message,
       code,
       ...context,
-      ...(details && { details }),
+      ...(details ? { details } : {}),
     };
 
     // Log with appropriate level based on error type

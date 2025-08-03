@@ -302,7 +302,7 @@ describe('DocumentsService', () => {
       map.set('author', 'Test User');
 
       // Capture the encoded content during save
-      let savedContent: string;
+      let savedContent: string = '';
       mockDb.set.mockImplementation((data) => {
         savedContent = data.encryptedContent;
         return mockDb;

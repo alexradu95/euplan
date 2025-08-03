@@ -54,6 +54,9 @@ class ConfigService {
 
   getNumber(key: keyof Environment): number {
     const value = this.config[key];
+    if (value === undefined) {
+      throw new Error(`Configuration value for ${String(key)} is undefined`);
+    }
     return typeof value === 'string' ? parseInt(value, 10) : value as number;
   }
 

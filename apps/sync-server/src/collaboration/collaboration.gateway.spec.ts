@@ -5,16 +5,16 @@ import { Server, Socket } from 'socket.io';
 import * as Y from 'yjs';
 import { CollaborationGateway } from './collaboration.gateway';
 import { DocumentsService } from '../documents/documents.service';
+import { LoggerService } from '../common/logger.service';
+import { JwtService } from '../auth/jwt.service';
+import type { AuthenticatedSocket } from '../types/websocket';
 
 interface MockSocket extends Partial<AuthenticatedSocket> {
   id: string;
   userId?: string;
   documentId?: string;
   ydoc?: Y.Doc;
-  handshake: Partial<{
-    auth?: { token?: string };
-    query?: { token?: string };
-  }>;
+  handshake: any;
   emit: jest.Mock;
   join: jest.Mock;
   leave: jest.Mock;
@@ -22,7 +22,7 @@ interface MockSocket extends Partial<AuthenticatedSocket> {
   disconnect: jest.Mock;
 }
 
-const createMockSocket = (overrides?: Partial<MockSocket>): MockSocket => {
+const createMockSocket = (overrides?: Partial<MockSocket>): AuthenticatedSocket => {
   const toMock = {
     emit: jest.fn(),
   };
@@ -36,7 +36,7 @@ const createMockSocket = (overrides?: Partial<MockSocket>): MockSocket => {
     to: jest.fn().mockReturnValue(toMock),
     disconnect: jest.fn(),
     ...overrides,
-  };
+  } as unknown as AuthenticatedSocket;
 };
 
 const createMockDocumentsService = () => ({
@@ -50,14 +50,30 @@ const createMockConfigService = () => ({
   get: jest.fn(),
 });
 
+const createMockLoggerService = () => ({
+  wsLog: jest.fn(),
+  authLog: jest.fn(),
+  error: jest.fn(),
+  log: jest.fn(),
+});
+
+const createMockJwtService = () => ({
+  verifyToken: jest.fn(),
+  extractTokenFromHeader: jest.fn(),
+});
+
 describe('CollaborationGateway', () => {
   let gateway: CollaborationGateway;
   let mockDocumentsService: ReturnType<typeof createMockDocumentsService>;
   let mockConfigService: ReturnType<typeof createMockConfigService>;
+  let mockLoggerService: ReturnType<typeof createMockLoggerService>;
+  let mockJwtService: ReturnType<typeof createMockJwtService>;
 
   beforeEach(async () => {
     mockDocumentsService = createMockDocumentsService();
     mockConfigService = createMockConfigService();
+    mockLoggerService = createMockLoggerService();
+    mockJwtService = createMockJwtService();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -69,6 +85,14 @@ describe('CollaborationGateway', () => {
         {
           provide: ConfigService,
           useValue: mockConfigService,
+        },
+        {
+          provide: LoggerService,
+          useValue: mockLoggerService,
+        },
+        {
+          provide: JwtService,
+          useValue: mockJwtService,
         },
       ],
     }).compile();
@@ -84,7 +108,12 @@ describe('CollaborationGateway', () => {
   describe('handleConnection', () => {
     it('should authenticate client with valid token', async () => {
       const mockSocket = createMockSocket({
-        handshake: { auth: { token: 'user123' } },
+        handshake: { auth: { token: 'valid-token' } },
+      });
+
+      mockJwtService.verifyToken.mockReturnValue({
+        userId: 'user123',
+        email: 'test@example.com',
       });
 
       await gateway.handleConnection(mockSocket);
@@ -95,7 +124,12 @@ describe('CollaborationGateway', () => {
 
     it('should authenticate client with token in query', async () => {
       const mockSocket = createMockSocket({
-        handshake: { query: { token: 'user456' } },
+        handshake: { query: { token: 'valid-token' } },
+      });
+
+      mockJwtService.verifyToken.mockReturnValue({
+        userId: 'user456',
+        email: 'test@example.com',
       });
 
       await gateway.handleConnection(mockSocket);
@@ -112,7 +146,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleConnection(mockSocket);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('auth_error', {
-        message: 'Authentication failed',
+        message: expect.stringContaining('No authentication token provided'),
+        code: expect.any(String),
+        shouldRetry: expect.any(Boolean),
       });
       expect(mockSocket.disconnect).toHaveBeenCalled();
     });
@@ -125,7 +161,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleConnection(mockSocket);
 
       expect(mockSocket.emit).toHaveBeenCalledWith('auth_error', {
-        message: 'Authentication failed',
+        message: expect.stringContaining('No authentication token provided'),
+        code: expect.any(String),
+        shouldRetry: expect.any(Boolean),
       });
       expect(mockSocket.disconnect).toHaveBeenCalled();
     });
@@ -133,13 +171,19 @@ describe('CollaborationGateway', () => {
     it('should prioritize auth token over query token', async () => {
       const mockSocket = createMockSocket({
         handshake: { 
-          auth: { token: 'auth-user' },
-          query: { token: 'query-user' }
+          auth: { token: 'auth-token' },
+          query: { token: 'query-token' }
         },
+      });
+
+      mockJwtService.verifyToken.mockReturnValue({
+        userId: 'auth-user',
+        email: 'test@example.com',
       });
 
       await gateway.handleConnection(mockSocket);
 
+      expect(mockJwtService.verifyToken).toHaveBeenCalledWith('auth-token');
       expect(mockSocket.userId).toBe('auth-user');
     });
   });
@@ -166,6 +210,8 @@ describe('CollaborationGateway', () => {
 
       expect(mockSocket.emit).toHaveBeenCalledWith('join_error', {
         message: expect.stringContaining('not authenticated'),
+        code: expect.any(String),
+        shouldRetry: expect.any(Boolean),
       });
       expect(mockSocket.join).not.toHaveBeenCalled();
     });
@@ -180,7 +226,9 @@ describe('CollaborationGateway', () => {
       await gateway.handleJoinDocument(mockSocket, { documentId: 'doc123' });
 
       expect(mockSocket.emit).toHaveBeenCalledWith('join_error', {
-        message: 'Document not found',
+        message: expect.stringContaining('Document not found'),
+        code: expect.any(String),
+        shouldRetry: expect.any(Boolean),
       });
       expect(mockSocket.join).not.toHaveBeenCalled();
     });
@@ -230,11 +278,11 @@ describe('CollaborationGateway', () => {
       await gateway.handleJoinDocument(mockSocket, { documentId: 'doc123' });
 
       // Reset mocks to focus on the document update behavior
-      mockSocket.to.mockClear();
+      (mockSocket.to as jest.Mock).mockClear();
       const toMock = {
         emit: jest.fn(),
       };
-      mockSocket.to.mockReturnValue(toMock);
+      (mockSocket.to as jest.Mock).mockReturnValue(toMock);
       mockDocumentsService.hasWriteAccess.mockResolvedValue(true);
 
       // Create a valid Y.js update

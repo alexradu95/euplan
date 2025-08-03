@@ -205,7 +205,7 @@ describe('Documents Integration Tests', () => {
       const text = doc.getText('rapid');
       
       // Perform multiple rapid saves
-      const savePromises = [];
+      const savePromises: Promise<void>[] = [];
       for (let i = 0; i < 10; i++) {
         text.insert(text.length, `Save ${i} `);
         savePromises.push(
@@ -214,7 +214,7 @@ describe('Documents Integration Tests', () => {
       }
 
       // All saves should complete successfully
-      await expect(Promise.all(savePromises)).resolves.not.toThrow();
+      await expect(Promise.all(savePromises)).resolves.toBeDefined();
 
       // Final state should be correct
       const finalDoc = await documentsService.loadDocument(testDocumentId, testUserId);

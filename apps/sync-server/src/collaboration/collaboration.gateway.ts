@@ -25,6 +25,7 @@ import type {
 import { config } from '../config/environment';
 import { ErrorHandler } from '../common/error-handler';
 import { RateLimiter } from '../security/rate-limiter';
+import { PerformanceMonitor } from '../common/performance-monitor';
 
 
 interface DocumentRoom {
@@ -101,8 +102,13 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
         throw new UnauthorizedException('No authentication token provided');
       }
 
-      // Verify JWT token
-      const payload = this.jwtService.verifyToken(token);
+      // Verify JWT token with performance tracking
+      const payload = await PerformanceMonitor.trackOperation(
+        'user_authentication',
+        async () => this.jwtService.verifyToken(token),
+        { clientId: client.id }
+      );
+      
       if (!payload) {
         throw new UnauthorizedException('Invalid or expired authentication token');
       }
@@ -214,7 +220,6 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       const errorResponse = ErrorHandler.handleError(error, {
         clientId: client.id,
         userId: client.userId,
-        documentId: validatedData?.documentId,
         operation: 'join_document',
       });
       
@@ -233,6 +238,21 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
   async handleDocumentUpdate(
     @ConnectedSocket() client: AuthenticatedSocket,
     @MessageBody() data: unknown
+  ) {
+    return PerformanceMonitor.trackOperation(
+      'websocket_message',
+      async () => this.processDocumentUpdate(client, data),
+      { 
+        clientId: client.id, 
+        userId: client.userId,
+        messageType: 'document_update'
+      }
+    );
+  }
+
+  private async processDocumentUpdate(
+    client: AuthenticatedSocket,
+    data: unknown
   ) {
     // Rate limit document updates specifically
     if (!this.documentUpdateRateLimit(client.id)) {
@@ -299,7 +319,6 @@ export class CollaborationGateway implements OnGatewayConnection, OnGatewayDisco
       const errorResponse = ErrorHandler.handleError(error, {
         clientId: client.id,
         userId: client.userId,
-        documentId: validatedData?.documentId,
         operation: 'document_update',
       });
       
