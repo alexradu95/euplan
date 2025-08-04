@@ -63,3 +63,68 @@ export const documents = pgTable(
 
 // Removed documentAccess table - no longer needed for single-user documents
 // All documents are owned by their creator (userId), no sharing/collaboration needed
+
+// Dashboard configuration - stores widget layouts per period
+export const dashboardConfigs = pgTable(
+  "dashboard_configs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    period: text("period").notNull(), // 'daily', 'weekly', 'monthly'
+    layout: text("layout").notNull(), // JSON string of widget layout configuration
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
+  },
+  (configs) => ({
+    userIdPeriodIdx: index("idx_dashboard_configs_user_period").on(configs.userId, configs.period),
+    userIdUpdatedAtIdx: index("idx_dashboard_configs_user_updated_at").on(configs.userId, configs.updatedAt),
+  })
+)
+
+// Widget instances - individual widgets on dashboards
+export const widgets = pgTable(
+  "widgets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    configId: uuid("config_id")
+      .notNull()
+      .references(() => dashboardConfigs.id, { onDelete: "cascade" }),
+    type: text("type").notNull(), // 'periodic-note', 'tasks', 'habits', etc.
+    position: text("position").notNull(), // JSON string of { x, y, w, h, minW, minH, etc }
+    settings: text("settings"), // JSON string of widget-specific configuration
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
+  },
+  (widgets) => ({
+    configIdIdx: index("idx_widgets_config_id").on(widgets.configId),
+    userIdTypeIdx: index("idx_widgets_user_type").on(widgets.userId, widgets.type),
+  })
+)
+
+// Widget data storage - encrypted content for each widget per period
+export const widgetData = pgTable(
+  "widget_data",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    widgetId: uuid("widget_id")
+      .notNull()
+      .references(() => widgets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    periodId: text("period_id").notNull(), // e.g., 'daily-2025-01-15', 'weekly-2025-01-13'
+    data: text("data"), // Encrypted JSON string of widget content
+    createdAt: timestamp("createdAt", { mode: "date" }).defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).defaultNow(),
+  },
+  (data) => ({
+    widgetPeriodIdx: index("idx_widget_data_widget_period").on(data.widgetId, data.periodId),
+    userIdPeriodIdx: index("idx_widget_data_user_period").on(data.userId, data.periodId),
+    widgetIdUpdatedAtIdx: index("idx_widget_data_widget_updated_at").on(data.widgetId, data.updatedAt),
+  })
+)

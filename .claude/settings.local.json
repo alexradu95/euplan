@@ -5,7 +5,12 @@
       "Bash(pnpm install:*)",
       "Bash(npm run test:unit:*)",
       "Bash(ls:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm add:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(npm run:*)"
     ],
     "deny": []
   }

@@ -32,8 +32,14 @@ export default function DocumentHeader() {
   return (
     <header className="border-b border-gray-200 bg-white px-6 py-4">
       <div className="flex items-center justify-between">
-        {/* Document Title */}
+        {/* Document Title and Navigation */}
         <div className="flex items-center space-x-4">
+          {/* Navigation */}
+          <nav className="hidden md:flex items-center space-x-6 mr-4">
+            <a href="/dashboard" className="text-gray-600 hover:text-gray-900 font-medium">Dashboard</a>
+            <a href="/documents" className="text-blue-600 hover:text-blue-700 font-medium">Documents</a>
+          </nav>
+          
           {isEditingTitle ? (
             <input
               type="text"
