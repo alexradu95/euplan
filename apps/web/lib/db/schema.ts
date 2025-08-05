@@ -61,8 +61,6 @@ export const documents = pgTable(
   })
 )
 
-// Removed documentAccess table - no longer needed for single-user documents
-// All documents are owned by their creator (userId), no sharing/collaboration needed
 
 // Dashboard configuration - stores widget layouts per period
 export const dashboardConfigs = pgTable(

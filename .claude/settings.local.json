@@ -10,7 +10,10 @@
       "Bash(pnpm add:*)",
       "Bash(rm:*)",
       "Bash(mv:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npx jest:*)",
+      "Bash(find:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

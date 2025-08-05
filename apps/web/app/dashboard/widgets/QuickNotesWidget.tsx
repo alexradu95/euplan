@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useDashboard } from '../providers/DashboardProvider'
 import { WidgetProps } from '../types/widget'
 import BaseWidget from './BaseWidget'
+import { WidgetApiService } from '@/lib/services/widget-api'
 
 interface QuickNote {
   id: string
@@ -24,11 +25,11 @@ export default function QuickNotesWidget({ widgetId, config, onRemove, onConfigu
     const loadNotes = async () => {
       setIsLoading(true)
       try {
-        const savedNotes = localStorage.getItem(`widget-${widgetId}-${periodId}`)
-        if (savedNotes) {
-          const parsedNotes = JSON.parse(savedNotes).map((note: any) => ({
+        const savedNotes = await WidgetApiService.loadWidgetData(widgetId, periodId)
+        if (savedNotes && Array.isArray(savedNotes)) {
+          const parsedNotes = savedNotes.map((note: any) => ({
             ...note,
-            timestamp: new Date(note.timestamp)
+            timestamp: typeof note.timestamp === 'string' ? new Date(note.timestamp) : note.timestamp
           }))
           setNotes(parsedNotes)
         } else {
@@ -45,10 +46,10 @@ export default function QuickNotesWidget({ widgetId, config, onRemove, onConfigu
     loadNotes()
   }, [periodId, widgetId])
 
-  // Save notes to localStorage
-  const saveNotes = (updatedNotes: QuickNote[]) => {
+  // Save notes to API
+  const saveNotes = async (updatedNotes: QuickNote[]) => {
     try {
-      localStorage.setItem(`widget-${widgetId}-${periodId}`, JSON.stringify(updatedNotes))
+      await WidgetApiService.saveWidgetData(widgetId, periodId, updatedNotes)
     } catch (error) {
       console.error('Failed to save quick notes:', error)
     }

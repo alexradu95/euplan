@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useDashboard } from '../providers/DashboardProvider'
 import { WidgetProps } from '../types/widget'
 import BaseWidget from './BaseWidget'
+import { WidgetApiService } from '@/lib/services/widget-api'
 
 interface Habit {
   id: string
@@ -59,15 +60,15 @@ export default function HabitsWidget({ widgetId, config, onRemove, onConfigure }
     const loadHabits = async () => {
       setIsLoading(true)
       try {
-        const savedHabits = localStorage.getItem(`widget-${widgetId}-${periodId}`)
-        if (savedHabits) {
-          setHabits(JSON.parse(savedHabits))
+        const savedHabits = await WidgetApiService.loadWidgetData(widgetId, periodId)
+        if (savedHabits && Array.isArray(savedHabits)) {
+          setHabits(savedHabits)
         } else {
           // Use default habits for new periods
           const defaultHabits = getDefaultHabits()
           setHabits(defaultHabits)
           if (defaultHabits.length > 0) {
-            localStorage.setItem(`widget-${widgetId}-${periodId}`, JSON.stringify(defaultHabits))
+            await WidgetApiService.saveWidgetData(widgetId, periodId, defaultHabits)
           }
         }
       } catch (error) {
@@ -81,10 +82,10 @@ export default function HabitsWidget({ widgetId, config, onRemove, onConfigure }
     loadHabits()
   }, [periodId, widgetId, currentPeriod])
 
-  // Save habits to localStorage
-  const saveHabits = (updatedHabits: Habit[]) => {
+  // Save habits to API
+  const saveHabits = async (updatedHabits: Habit[]) => {
     try {
-      localStorage.setItem(`widget-${widgetId}-${periodId}`, JSON.stringify(updatedHabits))
+      await WidgetApiService.saveWidgetData(widgetId, periodId, updatedHabits)
       setHabits(updatedHabits)
     } catch (error) {
       console.error('Failed to save habits:', error)

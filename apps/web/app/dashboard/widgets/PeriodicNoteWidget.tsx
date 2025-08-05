@@ -5,6 +5,7 @@ import { useDashboard } from '../providers/DashboardProvider'
 import { WidgetProps } from '../types/widget'
 import BaseWidget from './BaseWidget'
 import TiptapEditor from '../../components/TiptapEditor'
+import { WidgetApiService } from '@/lib/services/widget-api'
 
 export default function PeriodicNoteWidget({ widgetId, config, onRemove, onConfigure }: WidgetProps) {
   const { currentPeriod, getCurrentPeriodId, getCurrentPeriodTitle } = useDashboard()
@@ -20,9 +21,7 @@ export default function PeriodicNoteWidget({ widgetId, config, onRemove, onConfi
     const loadNote = async () => {
       setIsLoading(true)
       try {
-        // For now, we'll store notes in localStorage
-        // Later this should be replaced with proper API calls
-        const savedContent = localStorage.getItem(`widget-${widgetId}-${periodId}`)
+        const savedContent = await WidgetApiService.loadWidgetData(widgetId, periodId)
         setContent(savedContent || '')
       } catch (error) {
         console.error('Failed to load note:', error)
@@ -40,9 +39,7 @@ export default function PeriodicNoteWidget({ widgetId, config, onRemove, onConfi
     setContent(newContent)
     
     try {
-      // For now, save to localStorage
-      // Later this should be replaced with proper API calls with debouncing
-      localStorage.setItem(`widget-${widgetId}-${periodId}`, newContent)
+      await WidgetApiService.saveWidgetData(widgetId, periodId, newContent)
       setLastSaved(new Date())
     } catch (error) {
       console.error('Failed to save note:', error)

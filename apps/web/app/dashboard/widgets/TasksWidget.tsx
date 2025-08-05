@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useDashboard } from '../providers/DashboardProvider'
 import { WidgetProps } from '../types/widget'
 import BaseWidget from './BaseWidget'
+import { WidgetApiService } from '@/lib/services/widget-api'
 
 interface Task {
   id: string
@@ -27,11 +28,11 @@ export default function TasksWidget({ widgetId, config, onRemove, onConfigure }:
     const loadTasks = async () => {
       setIsLoading(true)
       try {
-        const savedTasks = localStorage.getItem(`widget-${widgetId}-${periodId}`)
-        if (savedTasks) {
-          const parsedTasks = JSON.parse(savedTasks).map((task: any) => ({
+        const savedTasks = await WidgetApiService.loadWidgetData(widgetId, periodId)
+        if (savedTasks && Array.isArray(savedTasks)) {
+          const parsedTasks = savedTasks.map((task: any) => ({
             ...task,
-            createdAt: new Date(task.createdAt)
+            createdAt: typeof task.createdAt === 'string' ? new Date(task.createdAt) : task.createdAt
           }))
           setTasks(parsedTasks)
         } else {
@@ -48,10 +49,10 @@ export default function TasksWidget({ widgetId, config, onRemove, onConfigure }:
     loadTasks()
   }, [periodId, widgetId])
 
-  // Save tasks to localStorage
-  const saveTasks = (updatedTasks: Task[]) => {
+  // Save tasks to API
+  const saveTasks = async (updatedTasks: Task[]) => {
     try {
-      localStorage.setItem(`widget-${widgetId}-${periodId}`, JSON.stringify(updatedTasks))
+      await WidgetApiService.saveWidgetData(widgetId, periodId, updatedTasks)
     } catch (error) {
       console.error('Failed to save tasks:', error)
     }
